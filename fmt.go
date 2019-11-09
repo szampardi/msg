@@ -1,3 +1,13 @@
+/*
+
+Copyright (c) 2019, SILVANO ZAMPARDI
+All rights reserved.
+
+This source code is licensed under the BSD-style license found in the
+LICENSE file in the root directory of this source tree.
+
+*/
+
 package msg
 
 import (
@@ -6,53 +16,96 @@ import (
 )
 
 // Format is a format :D
-type Format string
+type Format struct {
+	Name    string
+	_String string
+}
+
+func (f Format) String() string {
+	return Formats[f.Name]._String
+}
 
 const ( //  https://golang.org/src/time/format.go
 	// CLITimeFmt command line interface
-	CLITimeFmt Format = "rfc822"
+	CLITimeFmt string = "rfc822"
 	// DefTimeFmt default time format
-	DefTimeFmt Format = "rfc3339"
+	DefTimeFmt string = "rfc3339"
 	// DetailedTimeFmt has nanoseconds
-	DetailedTimeFmt Format = "rfc3339Nano"
+	DetailedTimeFmt string = "rfc3339Nano"
 	// CLIFormat  command line interface
-	CLIFormat Format = "cli"
+	CLIFormat string = "cli"
+	// PlainFormat just print message
+	PlainFormat string = "plain"
+	// PlainFormatWithEmoji just print message with emoji
+	PlainFormatWithEmoji string = "plain-emoji"
 	// StdFormat standard format
-	StdFormat Format = "std"
+	StdFormat string = "std"
 	// StdFormatWithEmoji same as above with an emoji
-	StdFormatWithEmoji Format = "std-emoji"
+	StdFormatWithEmoji string = "std-emoji"
 	// SimpleFormat short
-	SimpleFormat Format = "simple"
+	SimpleFormat string = "simple"
 	// JSONFormat initial attempt at supporting json
-	JSONFormat Format = "json"
+	JSONFormat string = "json"
 )
 
 var (
-	// Fmt exported formats
-	Fmt = map[Format]string{
-		CLITimeFmt:         time.RFC822,
-		DefTimeFmt:         time.RFC3339,
-		DetailedTimeFmt:    time.RFC3339Nano,
-		CLIFormat:          "%[3]s\t%[2]s\n\t%[7]s\n\n",
-		StdFormat:          "#%[1]d|%[2]s|%[4]s:%[5]d\t%.5[6]s\t%[7]s",
-		StdFormatWithEmoji: "#%[1]d|%[2]s|%[4]s:%[5]d\t%[8]s\t%.5[6]s\t%[7]s",
-		SimpleFormat:       "#%[2]s\t%[3]s\t%[7]s",
-		JSONFormat:         `{"id":"%[1]d","time":"%[2]s","module":"%[3]s", "line":"%[4]s:%[5]d","message":"%[7]s","level":"%[6]s"}`, // message still has to be escaped
+	// Formats exported formats
+	Formats = map[string]Format{
+		CLITimeFmt: Format{
+			Name:    CLITimeFmt,
+			_String: time.RFC822,
+		},
+		DefTimeFmt: Format{
+			Name:    DefTimeFmt,
+			_String: time.RFC3339,
+		},
+		DetailedTimeFmt: Format{
+			Name:    DetailedTimeFmt,
+			_String: time.RFC3339Nano,
+		},
+		CLIFormat: Format{
+			Name:    CLIFormat,
+			_String: "%[3]s\t%[2]s\n\t%[7]s\n\n",
+		},
+		PlainFormat: Format{
+			Name:    PlainFormat,
+			_String: "%[7]s",
+		},
+		PlainFormatWithEmoji: Format{
+			Name:    PlainFormatWithEmoji,
+			_String: "%[8]s\t%[7]s",
+		},
+		StdFormat: Format{
+			Name:    StdFormat,
+			_String: "#%[1]d|%[2]s|%[4]s:%[5]d:%[3]s\t%.5[6]s\t%[7]s",
+		},
+		StdFormatWithEmoji: Format{
+			Name:    StdFormatWithEmoji,
+			_String: "#%[1]d|%[2]s|%[4]s:%[5]d:%[3]s\t%[8]s\t%.5[6]s\t%[7]s",
+		},
+		SimpleFormat: Format{
+			Name:    SimpleFormat,
+			_String: "#%[2]s\t%[3]s\t%[7]s",
+		},
+		JSONFormat: Format{
+			Name:    JSONFormat,
+			_String: `{"id":"%[1]d","time":"%[2]s","module":"%[3]s", "line":"%[4]s:%[5]d","message":"%[7]s","level":"%[6]s"}`,
+		},
 	}
 )
 
 var (
 	logNo            uint64
-	activeFormat     Format = Format(Fmt[StdFormat])
-	activeTimeFormat Format = Format(Fmt[DefTimeFmt])
+	activeFormat     string = Formats[StdFormat]._String
+	activeTimeFormat string = Formats[DefTimeFmt]._String
 )
 
 // SetDefaultFormat used to
 func SetDefaultFormat() {
-	activeFormat, activeTimeFormat = parseFormat(Fmt[CLIFormat])
+	activeFormat, activeTimeFormat = parseFormat(Formats[CLIFormat]._String)
 }
 
-func (w *worker) setFormat(format, timeformat Format) {
+func (w *worker) setFormat(format, timeformat string) {
 	w.format, w.timeFormat = format, timeformat
 }
 
@@ -87,14 +140,14 @@ var (
 )
 
 // Analyze and represent format string as printf format string and time format
-func parseFormat(format string) (msgfmt, timefmt Format) {
+func parseFormat(format string) (msgfmt, timefmt string) {
 	if len(format) < 10 /* (len of "%{message} */ {
 		return activeFormat, activeTimeFormat
 	}
 	timefmt = activeTimeFormat
 	idx := strings.IndexRune(format, '%')
 	for idx != -1 {
-		msgfmt += Format(format[:idx])
+		msgfmt += format[:idx]
 		format = format[idx:]
 		if len(format) > 2 {
 			if format[1] == '{' {
@@ -111,11 +164,11 @@ func parseFormat(format string) (msgfmt, timefmt Format) {
 					}
 					// get verb and arg
 					verb, arg := ph2verb(format[:jdx+1])
-					msgfmt += Format(verb)
+					msgfmt += verb
 					// check if verb is time
 					// here you can handle args for other verbs
 					if verb == `%[2]s` && arg != "" /* %{time} */ {
-						timefmt = Format(arg)
+						timefmt = arg
 					}
 					format = format[jdx+1:]
 				} else {
@@ -128,7 +181,7 @@ func parseFormat(format string) (msgfmt, timefmt Format) {
 		}
 		idx = strings.IndexRune(format, '%')
 	}
-	msgfmt += Format(format)
+	msgfmt += format
 	return
 }
 

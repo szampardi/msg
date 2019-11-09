@@ -1,3 +1,13 @@
+/*
+
+Copyright (c) 2019, SILVANO ZAMPARDI
+All rights reserved.
+
+This source code is licensed under the BSD-style license found in the
+LICENSE file in the root directory of this source tree.
+
+*/
+
 package main
 
 import (
@@ -6,16 +16,6 @@ import (
 	"github.com/nexus166/msg"
 )
 
-var l *msg.Logger
-
-func init() {
-	var err error
-	l, err = msg.New(msg.CLIFormat, msg.CLITimeFmt, "msg", true, os.Stdout, msg.LDebug)
-	if err != nil {
-		panic(err)
-	}
-}
-
 func main() {
-	l.Debugf("%v\n", os.Args)
+	msg.Debugf("%v\n", os.Args)
 }

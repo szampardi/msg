@@ -1,3 +1,13 @@
+/*
+
+Copyright (c) 2019, SILVANO ZAMPARDI
+All rights reserved.
+
+This source code is licensed under the BSD-style license found in the
+LICENSE file in the root directory of this source tree.
+
+*/
+
 package msg
 
 import (
@@ -20,26 +30,27 @@ import (
 type worker struct {
 	Minion     *log.Logger
 	Color      bool
-	format     Format
-	timeFormat Format
+	format     string
+	timeFormat string
 	level      Lvl
 }
 
 //NewWorker  Returns an instance of worker class, prefix is the string attached to every log,
 // flag determine the log params, color parameters verifies whether we need colored outputs or not
-func newWorker(prefix string, format, timeformat Format, flag int, color bool, out io.Writer) *worker {
+func newWorker(prefix string, format, timeformat string, flag int, color bool, out io.Writer, lvl Lvl) *worker {
 	return &worker{
 		Minion:     log.New(out, prefix, flag),
 		Color:      color,
 		format:     format,
 		timeFormat: timeformat,
+		level:      lvl,
 	}
 }
 
 // New Returns a new instance of logger class, module is the specific module for which we are logging
 // , color defines whether the output is to be colored or not, out is instance of type io.Writer defaults
 // to os.Stderr
-func New(format, timeformat Format, args ...interface{}) (*Logger, error) {
+func New(format, timeformat string, args ...interface{}) (*Logger, error) {
 	var module string = Levels[LDefault].Str
 	var color bool = true
 	var out io.Writer = os.Stderr
@@ -58,8 +69,8 @@ func New(format, timeformat Format, args ...interface{}) (*Logger, error) {
 			return nil, fmt.Errorf("%s:\t%s", "invalid argument", t)
 		}
 	}
-	newWorker := newWorker("", format, timeformat, 0, color, out)
-	newWorker.setLogLevel(level)
+	newWorker := newWorker("", format, timeformat, 0, color, out, level)
+	//newWorker.setLogLevel(level)
 	return &Logger{Module: module, worker: newWorker}, nil
 }
 
@@ -76,13 +87,19 @@ func (l *Logger) Log(lvl Lvl, message string) {
 	l.logInternal(lvl, message, 2)
 }
 
+//Log  The log commnand is the function available to user to log message, lvl specifies
+// the degree of the message the user wants to log, message is the info user wants to log
+func Log(lvl Lvl, message string) {
+	defaultLogger.logInternal(lvl, message, 2)
+}
+
 func (l *Logger) logInternal(lvl Lvl, message string, pos int) {
 	//var formatString string = "#%d %s [%s] %s:%d ▶ %.3s %s"
 	_, filename, line, _ := runtime.Caller(pos)
 	filename = path.Base(filename)
 	info := &info{
 		ID:       atomic.AddUint64(&logNo, 1),
-		Time:     time.Now().Format(Fmt[l.worker.timeFormat]),
+		Time:     time.Now().Format(l.worker.timeFormat),
 		Module:   l.Module,
 		Filename: filename,
 		Line:     line,
@@ -101,17 +118,17 @@ func (w *worker) log(level Lvl, calldepth int, info *info) error {
 	if w.Color {
 		buf := &bytes.Buffer{}
 		buf.Write(Levels[level].escapedBytes)
-		buf.Write([]byte(info.output(Format(w.format))))
+		buf.Write([]byte(info.output(w.format)))
 		buf.Write(ansi.Controls["Reset"].Bytes)
 		return w.Minion.Output(calldepth+1, buf.String())
 	}
-	return w.Minion.Output(calldepth+1, info.output(Format(w.format)))
+	return w.Minion.Output(calldepth+1, info.output(w.format))
 }
 
 // Output Returns a proper string to be outputted for a particular info
-func (r *info) output(format Format) string {
+func (r *info) output(format string) string {
 	msg := fmt.Sprintf(
-		Fmt[format],
+		format,
 		r.ID,                  // %[1] // %{id}
 		r.Time,                // %[2] // %{time[:fmt]}
 		r.Module,              // %[3] // %{module}
