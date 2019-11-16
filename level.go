@@ -11,10 +11,8 @@ LICENSE file in the root directory of this source tree.
 package msg
 
 import (
-	"fmt"
-
-	"github.com/nexus166/msg/unicode"
 	"github.com/nexus166/msg/ansi"
+	"github.com/nexus166/msg/unicode"
 )
 
 // Lvl is a verbosity level
@@ -92,16 +90,7 @@ var (
 	}
 )
 
-// GetLevel retrieve info about a level
-func (L Level) GetLevel() (int, string) {
-	return L.ID, L.Str
-}
-
-// AddLevel to create a new level
-func AddLevel(id int, name, color string, emoji int) error {
-	if id > 7 {
-		Levels[Lvl(id)] = initLvl(id, name, color, emoji)
-		return nil
-	}
-	return fmt.Errorf("%s", "overriding existing log levels is not permitted, pick an id > 7")
+// SetLevel to create or reconfigure a level
+func SetLevel(id int, name, color string, emoji int) {
+	Levels[Lvl(id)] = initLvl(id, name, color, emoji)
 }

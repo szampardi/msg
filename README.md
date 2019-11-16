@@ -1,24 +1,43 @@
 
 # msg
 
-A simple go logger forked from https://github.com/apsdehal/go-logger for easy logging in your programs.
-Allows setting custom format for messages, has WIP JSON support, and other nice features - but keeping things light (0 external imports).
+## Overview
 
-# Install
+msg is a Golang logging library forked from https://github.com/apsdehal/go-logger.
+It has the following features I could not find anywhere else (hence the fork):
+- Ability to create new or reconfigure existing log levels
+- Log-level based colored output
+- Custom format for messages
+- Custom time format for messages
+- Multiple pre-configured formats to pick from: 
+  - cli
+  - plain
+  - plain-emoji
+  - std
+  - std-emoji
+  - simple
+  - JSON  (make sure you properly escape your messages and disable colored output!)
+  - All the default time format constants (https://golang.org/pkg/time/#pkg-constants)
+- **0 external imports.**
+
+
+## Installation
 
 ```sh
 go get -v -u github.com/nexus166/msg
 ```
 
-# Example
+## Usage
 
-Example [program](msg/main.go) demonstrates how to use the logger. See below for __formatting__ instructions.
+Example below demonstrates some ways to start using msg
 
 ```go
 package main
 
 import (
 	"os"
+	"strings"
+	"time"
 
 	"github.com/nexus166/msg"
 )
@@ -26,33 +45,43 @@ import (
 var l *msg.Logger
 
 func init() {
+	msg.Info("You can immediately use the default Logger, or configure new Loggers")
 	var err error
-	l, err = msg.New(msg.CLIFormat, msg.CLITimeFmt, "msg", true, os.Stdout)
+	// Formats is a map[string]Format, it is easy to access the various formats with a simple commandline flag
+	l, err = msg.New(msg.Formats["cli"].String(), msg.Formats["rfc822"].String(), "msg-cli", true, os.Stdout, msg.LDebug) //configure the global l *msg.Logger
 	if err != nil {
-		panic(err)
+		msg.Fatal(err.Error())
 	}
-	l.Critical("configured!")
+	msg.Info("New Logger configured!")
 }
 
 func main() {
-	for range []int{0, 1} {
-		//l, _ = msg.New(x, os.Stderr)
-		// Critically log critical
-		l.Critical("This is Critical!")
-		// Debug
-		l.Debug("This is Debug!")
-		// Give the Warning
-		l.Warning("This is Warning!")
-		l2, _ := msg.New(msg.JSONFormat, msg.DetailedTimeFmt, "msg", true, os.Stdout)
-		// Show the error
-		l2.Error("This is Error!")
-		// Notice
-		l2.Notice("This is Notice!")
-		//Show the info
-		l.Info("This is Info!")
+	for f, F := range msg.Formats { // lets test them all
+		if !strings.Contains(f, "rfc") {
+			for _, b := range []bool{false, true} {
+				// to use a preconfigured format, you need to pass the format string to msg.New(). For this, String() method is available on preconfigured Formats.
+				l, errL := msg.New(F.String(), msg.Formats[msg.DetailedTimeFmt].String(), "msg-"+f, b, os.Stderr, msg.LDebug)
+				if errL != nil {
+					msg.Error(errL.Error())
+				}
+				for _, lvl := range msg.Levels {
+					l.Log(msg.Lvl(lvl.ID), "Log "+lvl.Str+", format: "+f)
+				}
+			}
+		}
+	}
+	for _, lvl := range msg.Levels {
+		// send a message in this project's original format. You can pass constants directly from time lib to msg as a time format.
+		l, _ = msg.New("#%[1]d %[2]s %[4]s:%[5]d ▶ %.3[6]s %[7]s", time.Kitchen, "custom-formats", true, os.Stdout, msg.LDebug)
+		l.Log(msg.Lvl(lvl.ID), "Log "+lvl.Str+" legacy format")
 	}
 }
 ```
+
+[Running the above code](https://play.golang.org/p/srOvuLkIvWe) will demo all available formats (and the customized one):
+
+![image](https://user-images.githubusercontent.com/9354925/68991311-c519bb00-085d-11ea-8e00-98853feeec09.png)
+
 
 ## License
 
