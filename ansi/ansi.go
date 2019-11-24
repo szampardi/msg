@@ -1,12 +1,5 @@
-/*
-
-Copyright (c) 2019, SILVANO ZAMPARDI
-All rights reserved.
-
-This source code is licensed under the BSD-style license found in the
-LICENSE file in the root directory of this source tree.
-
-*/
+// Copyright (c) 2019 SILVANO ZAMPARDI, All rights reserved.
+// This source code license can be found in the LICENSE file in the root directory of this source tree.
 
 package ansi
 
@@ -15,7 +8,7 @@ import (
 	"strings"
 )
 
-const escapePrefix = "\033["
+const EscapePrefix = "\033["
 
 // initialize exported consts and vars that will be used
 
@@ -59,7 +52,7 @@ func initColor(c int) colorSet {
 	intStr := func(c int) string {
 		return fmt.Sprintf("%d", c)
 	}
-	esc, bgesc := escapePrefix+intStr(c)+"m", escapePrefix+intStr(c+10)+"m"
+	esc, bgesc := EscapePrefix+intStr(c)+"m", EscapePrefix+intStr(c+10)+"m"
 	escB, bgescB := []byte(esc), []byte(bgesc)
 	return colorSet{
 		Code:    c,
@@ -87,43 +80,43 @@ var (
 	Controls = map[string]ansiSet{
 		"Prefix": initControl(
 			"Prefix",
-			escapePrefix,
+			EscapePrefix,
 		),
 		"Bold": initControl(
 			"Bold",
-			escapePrefix+"1m",
+			EscapePrefix+"1m",
 		),
 		"Clear": initControl(
 			"Clear",
-			escapePrefix+"2J",
+			EscapePrefix+"2J",
 		),
 		"Dim": initControl(
 			"Dim",
-			escapePrefix+"2m",
+			EscapePrefix+"2m",
 		),
 		"Hide": initControl(
 			"Hide",
-			escapePrefix+"8m",
+			EscapePrefix+"8m",
 		),
 		"Blink": initControl(
 			"Blink",
-			escapePrefix+"5m",
+			EscapePrefix+"5m",
 		),
 		"Unblink": initControl(
 			"Unblink",
-			escapePrefix+"25m",
+			EscapePrefix+"25m",
 		),
 		"Reset": initControl(
 			"Reset",
-			escapePrefix+"0m",
+			EscapePrefix+"0m",
 		),
 		"Reverse": initControl(
 			"Reverse",
-			escapePrefix+"7m",
+			EscapePrefix+"7m",
 		),
 		"Underline": initControl(
 			"Underline",
-			escapePrefix+"4m",
+			EscapePrefix+"4m",
 		),
 	}
 )
@@ -143,9 +136,9 @@ func PaintStrings(color string, bg bool, sep string, s ...string) string {
 	if ansi := GetColor(color); ansi.Str != `` {
 		all := strings.Join(s, sep)
 		if bg {
-			return ansi.Bgstr + all
+			return ansi.Bgstr + all + Controls["Reset"].Str
 		}
-		return ansi.Str + all
+		return ansi.Str + all + Controls["Reset"].Str
 	}
 	return ``
 }
