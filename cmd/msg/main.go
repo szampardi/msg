@@ -6,7 +6,7 @@ package main
 import (
 	"os"
 
-	"github.com/nexus166/msg"
+	"github.com/szampardi/msg"
 )
 
 func main() {

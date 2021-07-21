@@ -1,14 +1,14 @@
-// Copyright (c) 2019 SILVANO ZAMPARDI, All rights reserved.
-// This source code license can be found in the LICENSE file in the root directory of this source tree.
+// COPYRIGHT (c) 2019-2021 SILVANO ZAMPARDI, ALL RIGHTS RESERVED.
+// The license for these sources can be found in the LICENSE file in the root directory of this source tree.
 
-package msg
+package log
 
 import (
 	"bytes"
 	"os"
 	"testing"
 
-	"github.com/nexus166/msg/ansi"
+	"github.com/szampardi/msg/ansi"
 )
 
 func BenchmarkLoggerLog(b *testing.B) {
@@ -37,7 +37,7 @@ func BenchmarkLoggerLog(b *testing.B) {
 func BenchmarkLoggerNew(b *testing.B) {
 	for n := 0; n <= b.N; n++ {
 		log, err := New(StdFormat, DefTimeFmt, "testing")
-		if err != nil && log == nil {
+		if err != nil || log.Module == "" {
 			panic(err)
 		}
 	}
@@ -80,7 +80,7 @@ func TestSetFormat(t *testing.T) {
 	var buf bytes.Buffer
 	log, err := New(StdFormat, DefTimeFmt, "pkgname", &buf)
 	log.SetFormat(activeFormat)
-	if err != nil || log == nil {
+	if err != nil {
 		panic(err)
 	}
 	log.Infof("Test %d", 123)

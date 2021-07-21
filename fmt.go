@@ -1,7 +1,7 @@
-// Copyright (c) 2019 SILVANO ZAMPARDI, All rights reserved.
-// This source code license can be found in the LICENSE file in the root directory of this source tree.
+// COPYRIGHT (c) 2019-2021 SILVANO ZAMPARDI, ALL RIGHTS RESERVED.
+// The license for these sources can be found in the LICENSE file in the root directory of this source tree.
 
-package msg
+package log
 
 import (
 	"strings"
@@ -44,43 +44,43 @@ const ( //  https://golang.org/src/time/format.go
 var (
 	// Formats exported formats
 	Formats = map[string]Format{
-		CLITimeFmt: Format{
+		CLITimeFmt: {
 			Name:    CLITimeFmt,
 			_String: time.RFC822,
 		},
-		DefTimeFmt: Format{
+		DefTimeFmt: {
 			Name:    DefTimeFmt,
 			_String: time.RFC3339,
 		},
-		DetailedTimeFmt: Format{
+		DetailedTimeFmt: {
 			Name:    DetailedTimeFmt,
 			_String: time.RFC3339Nano,
 		},
-		CLIFormat: Format{
+		CLIFormat: {
 			Name:    CLIFormat,
 			_String: "%[3]s\t%[2]s\n\t%[7]s\n\n",
 		},
-		PlainFormat: Format{
+		PlainFormat: {
 			Name:    PlainFormat,
 			_String: "%[7]s",
 		},
-		PlainFormatWithEmoji: Format{
+		PlainFormatWithEmoji: {
 			Name:    PlainFormatWithEmoji,
 			_String: "%[8]s\t%[7]s",
 		},
-		StdFormat: Format{
+		StdFormat: {
 			Name:    StdFormat,
 			_String: "#%[1]d|%[2]s|%[4]s:%[5]d:%[3]s\t%.5[6]s\t%[7]s",
 		},
-		StdFormatWithEmoji: Format{
+		StdFormatWithEmoji: {
 			Name:    StdFormatWithEmoji,
 			_String: "#%[1]d|%[2]s|%[4]s:%[5]d:%[3]s\t%[8]s\t%.5[6]s\t%[7]s",
 		},
-		SimpleFormat: Format{
+		SimpleFormat: {
 			Name:    SimpleFormat,
 			_String: "#%[2]s\t%[3]s\t%[7]s",
 		},
-		JSONFormat: Format{
+		JSONFormat: {
 			Name:    JSONFormat,
 			_String: `{"id":"%[1]d","time":"%[2]s","module":"%[3]s", "line":"%[4]s:%[5]d","message":"%[7]s","level":"%[6]s"}`,
 		},
@@ -88,7 +88,7 @@ var (
 )
 
 var (
-	logNo            uint64
+	logNo            uint32
 	activeFormat     string = Formats[StdFormat]._String
 	activeTimeFormat string = Formats[DefTimeFmt]._String
 )
@@ -201,7 +201,7 @@ func ph2verb(ph string) (verb string, arg string) {
 // For which we are logging, level is the state, importance and type of message logged,
 // Message contains the string to be logged, format is the format of string to be passed to sprintf
 type info struct {
-	ID       uint64
+	ID       uint32
 	Time     string
 	Module   string
 	Level    Lvl

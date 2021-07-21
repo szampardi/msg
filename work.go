@@ -1,7 +1,7 @@
-// Copyright (c) 2019 SILVANO ZAMPARDI, All rights reserved.
-// This source code license can be found in the LICENSE file in the root directory of this source tree.
+// COPYRIGHT (c) 2019-2021 SILVANO ZAMPARDI, ALL RIGHTS RESERVED.
+// The license for these sources can be found in the LICENSE file in the root directory of this source tree.
 
-package msg
+package log
 
 import (
 	"bytes"
@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nexus166/msg/ansi"
+	"github.com/szampardi/msg/ansi"
 )
 
 // Worker class, Worker is a log object used to log messages and Color specifies
@@ -31,6 +31,15 @@ type worker struct {
 //NewWorker  Returns an instance of worker class, prefix is the string attached to every log,
 // flag determine the log params, color parameters verifies whether we need colored outputs or not
 func newWorker(prefix string, format, timeformat string, flag int, color bool, out io.Writer, lvl Lvl) *worker {
+	if format == "" {
+		format = Formats[PlainFormat]._String
+	}
+	if timeformat == "" {
+		timeformat = time.RFC3339
+	}
+	if out == nil {
+		out = os.Stdout
+	}
 	return &worker{
 		Minion:     log.New(out, prefix, flag),
 		Color:      color,
@@ -43,8 +52,8 @@ func newWorker(prefix string, format, timeformat string, flag int, color bool, o
 // New Returns a new instance of logger class, module is the specific module for which we are logging
 // , color defines whether the output is to be colored or not, out is instance of type io.Writer defaults
 // to os.Stderr
-func New(format, timeformat string, args ...interface{}) (*Logger, error) {
-	var module string = Levels[LDefault].Str
+func New(format, timeformat string, args ...interface{}) (Logger, error) {
+	var module string = "msg"
 	var color bool = true
 	var out io.Writer = os.Stderr
 	var level Lvl = LDefault
@@ -59,12 +68,14 @@ func New(format, timeformat string, args ...interface{}) (*Logger, error) {
 		case Lvl:
 			level = t
 		default:
-			return nil, fmt.Errorf("%s:\t%s", "invalid argument", t)
+			return *defaultLogger, fmt.Errorf("%s:\t%s", "invalid argument", t)
 		}
 	}
-	newWorker := newWorker("", format, timeformat, 0, color, out, level)
 	//newWorker.setLogLevel(level)
-	return &Logger{Module: module, worker: newWorker}, nil
+	return Logger{
+		Module: module,
+		worker: newWorker("", format, timeformat, 0, color, out, level),
+	}, nil
 }
 
 // Logger class that is an interface to user to log messages, Module is the module for which we are testing
@@ -72,6 +83,16 @@ func New(format, timeformat string, args ...interface{}) (*Logger, error) {
 type Logger struct {
 	Module string
 	worker *worker
+}
+
+// Output ...
+func (l *Logger) Output(calldepth int, s string) error {
+	return l.worker.Minion.Output(calldepth, s)
+}
+
+// SetOutput ...
+func (l *Logger) SetOutput(w io.Writer) {
+	l.worker.Minion.SetOutput(w)
 }
 
 //Log  The log commnand is the function available to user to log message, lvl specifies
@@ -91,7 +112,7 @@ func (l *Logger) logInternal(lvl Lvl, message string, pos int) {
 	_, filename, line, _ := runtime.Caller(pos)
 	filename = path.Base(filename)
 	info := &info{
-		ID:       atomic.AddUint64(&logNo, 1),
+		ID:       atomic.AddUint32(&logNo, 1),
 		Time:     time.Now().Format(l.worker.timeFormat),
 		Module:   l.Module,
 		Filename: filename,
