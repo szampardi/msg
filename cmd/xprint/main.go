@@ -6,30 +6,32 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
-	"strings"
+	"text/template"
 
 	log "github.com/szampardi/msg"
 )
 
 var (
-	l         log.Logger                                   //
-	data      []interface{}                                //
-	logfmt    log.Format    = log.Formats[log.PlainFormat] //
-	loglvl    log.Lvl       = log.LInfo                    //
-	logcolor  bool          = false                        //
-	printfmt  string        = "%s"                         //
-	output    *os.File                                     //
-	argsfirst bool          = false                        //
+	l         log.Logger         //
+	data      []interface{}      //
+	name                         = flag.String("n", os.Args[0], "set name for verbose logging")
+	logfmt    log.Format         = log.Formats[log.PlainFormat] //
+	loglvl    log.Lvl            = log.LInfo                    //
+	logcolor  bool               = false                        //
+	_template *template.Template                                //
+	output    *os.File                                          //
+	argsfirst bool               = false                        //
 )
 
 func setFlags() {
 	flag.Func(
-		"F",
+		"f",
 		"logging format (prefix)",
 		func(value string) error {
 			if v, ok := log.Formats[value]; ok {
@@ -63,6 +65,18 @@ func setFlags() {
 		},
 	)
 	flag.Func(
+		"t",
+		"template (string or file)",
+		func(value string) error {
+			var err error
+			_template, err = template.ParseFiles(value)
+			if err != nil {
+				_template, err = template.New(os.Args[0]).Parse(value)
+			}
+			return err
+		},
+	)
+	flag.Func(
 		"o",
 		"output to",
 		func(value string) error {
@@ -80,7 +94,7 @@ func setFlags() {
 		},
 	)
 	flag.Func(
-		"A",
+		"a",
 		"output arguments (if any) before stdin (if any), instead of the opposite",
 		func(value string) error {
 			b, err := strconv.ParseBool(value)
@@ -99,35 +113,26 @@ func appendData(args []string) {
 }
 
 func init() {
+	var err error
 	setFlags()
 	for !flag.Parsed() {
 		flag.Parse()
 	}
-	flag.Func(
-		"f",
-		"fmt",
-		func(value string) error {
-			printfmt = strings.ReplaceAll(strings.ReplaceAll(value, "!", "%"), "|", `\`)
-			return nil
-		},
-	)
-	args := flag.Args()
-	if len(args) > 0 {
-		printfmt = args[0]
-		args = args[1:]
-		if argsfirst {
-			appendData(args)
-		} else {
-			defer appendData(args)
-		}
+	if err := log.IsValidLevel(int(loglvl)); err != nil {
+		panic(err)
 	}
-	var err error
-	l, err = log.New(logfmt.String(), log.Formats[log.DefTimeFmt].String(), loglvl, logcolor)
+	l, err = log.New(logfmt.String(), log.Formats[log.DefTimeFmt].String(), loglvl, logcolor, *name)
 	if err != nil {
 		panic(err)
 	}
 	if output != nil {
 		l.SetOutput(output)
+	}
+	args := flag.Args()
+	if argsfirst {
+		appendData(args)
+	} else {
+		defer appendData(args)
 	}
 	stdin, err := os.Stdin.Stat()
 	if err == nil && (stdin.Mode()&os.ModeCharDevice) == 0 {
@@ -141,20 +146,42 @@ func init() {
 }
 
 func main() {
-	switch loglvl {
-	case log.LCrit:
-		l.Criticalf(printfmt, data...)
-	case log.LErr:
-		l.Errorf(printfmt, data...)
-	case log.LWarn:
-		l.Warningf(printfmt, data...)
-	case log.LNotice:
-		l.Noticef(printfmt, data...)
-	case log.LInfo:
-		l.Infof(printfmt, data...)
-	case log.LDebug:
-		l.Debugf(printfmt, data...)
-	default:
-		panic(log.IsValidLevel(int(loglvl)))
+	if len(data) < 1 {
+		os.Exit(0)
+	}
+	if _template != nil {
+		buf := new(bytes.Buffer)
+		if err := _template.Execute(buf, data); err != nil {
+			panic(err)
+		}
+		switch loglvl {
+		case log.LCrit:
+			l.Criticalf("%s", buf.String())
+		case log.LErr:
+			l.Errorf("%s", buf.String())
+		case log.LWarn:
+			l.Warningf("%s", buf.String())
+		case log.LNotice:
+			l.Noticef("%s", buf.String())
+		case log.LInfo:
+			l.Infof("%s", buf.String())
+		case log.LDebug:
+			l.Debugf("%s", buf.String())
+		}
+	} else {
+		switch loglvl {
+		case log.LCrit:
+			l.Criticalf("%s", data...)
+		case log.LErr:
+			l.Errorf("%s", data...)
+		case log.LWarn:
+			l.Warningf("%s", data...)
+		case log.LNotice:
+			l.Noticef("%s", data...)
+		case log.LInfo:
+			l.Infof("%s", data...)
+		case log.LDebug:
+			l.Debugf("%s", data...)
+		}
 	}
 }
