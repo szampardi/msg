@@ -1,7 +1,5 @@
-// Copyright (c) 2019 SILVANO ZAMPARDI, All rights reserved.
+// Copyright (c) 2019-2021 SILVANO ZAMPARDI, All rights reserved.
 // This source code license can be found in the LICENSE file in the root directory of this source tree.
-
-// WIP ---- flag parsing fmt instructions is broken
 
 package main
 
@@ -19,17 +17,17 @@ import (
 )
 
 var (
-	l         log.Logger                                                                                          //
-	data      = make(map[string]interface{})                                                                      //
-	dataIndex []string                                                                                            //
-	name                                                                                                          = flag.String("n", os.Args[0], "set name for verbose logging")
-	logfmt    log.Format                                                                                          = log.Formats[log.PlainFormat]             //
-	loglvl    log.Lvl                                                                                             = log.LInfo                                //
-	logcolor                                                                                                      = flag.Bool("c", false, "colorize output") ////
-	_template *template.Template                                                                                                                             //
-	env       = flag.Bool("e", false, "use environment variables when filling templates")                                                                    //
-	output    *os.File                                                                                                                                       //
-	argsfirst = flag.Bool("a", false, "output arguments (if any) before stdin (if any), instead of the opposite")                                            //
+	l         log.Logger                                                                                                                         //
+	data      = make(map[string]interface{})                                                                                                     //
+	dataIndex []string                                                                                                                           //
+	name                                     = flag.String("n", os.Args[0], "set name for verbose logging")                                      //
+	logfmt    log.Format                     = log.Formats[log.PlainFormat]                                                                      //
+	loglvl    log.Lvl                        = log.LNotice                                                                                       //
+	logcolor                                 = flag.Bool("c", false, "colorize output")                                                          ////
+	_template *template.Template                                                                                                                 //
+	env       *bool                          = flag.Bool("e", false, "use environment variables when filling templates")                         //
+	output    *os.File                                                                                                                           //
+	argsfirst *bool                          = flag.Bool("a", false, "output arguments (if any) before stdin (if any), instead of the opposite") //
 )
 
 func setFlags() {
@@ -130,9 +128,6 @@ func init() {
 }
 
 func main() {
-	if len(data) < 1 {
-		os.Exit(0)
-	}
 	buf := new(bytes.Buffer)
 	if _template != nil {
 		if *env {
@@ -152,6 +147,9 @@ func main() {
 				panic(err)
 			}
 		}
+	}
+	if buf.Len() < 1 {
+		os.Exit(0)
 	}
 	switch loglvl {
 	case log.LCrit:
