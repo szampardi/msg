@@ -1,39 +1,88 @@
-# Formatting
 
-By default all log messages have format that you can see above (on pic).
-But you can override the default format and set format that you want.
+# msg
 
-You can do it for Logger instance (after creating logger) ...
+## Overview
+
+msg is a Golang logging library forked from https://github.com/apsdehal/go-logger.
+It has the following features I could not find anywhere else (hence the fork):
+- Ability to create new or reconfigure existing log levels
+- Log-level based colored output
+- Custom format for messages
+- Custom time format for messages
+- Multiple pre-configured formats to pick from: 
+  - cli
+  - plain
+  - plain-emoji
+  - std
+  - std-emoji
+  - simple
+  - JSON  (make sure you properly escape your messages and disable colored output!)
+  - All the default time format constants (https://golang.org/pkg/time/#pkg-constants)
+- **0 external imports.**
+
+
+## Installation
+
+```sh
+go get -v -u github.com/nexus166/msg
+```
+
+## Usage
+
+Example below demonstrates some ways to start using msg
+
 ```go
-log, _ := logger.New("pkgname", 1)
-log.SetFormat(format)
-```
-... or for package
-```go
-logger.SetDefaultFormat(format)
-```
-If you do it for package, all existing loggers will print log messages with format that these used already.
-But all newest loggers (which will be created after changing format for package) will use your specified format.
+package main
 
-But anyway after this, you can still set format of message for specific Logger instance.
+import (
+	"os"
+	"strings"
+	"time"
 
-Format of log message must contains verbs that represent some info about current log entry.
-Ofc, format can contain not only verbs but also something else (for example text, digits, symbols, etc)
+	"github.com/nexus166/msg"
+)
 
-### Format verbs:
-You can use the following verbs:
+var l *msg.Logger
+
+func init() {
+	msg.Info("You can immediately use the default Logger, or configure new Loggers")
+	var err error
+	// Formats is a map[string]Format, it is easy to access the various formats with a simple commandline flag
+	l, err = msg.New(msg.Formats["cli"].String(), msg.Formats["rfc822"].String(), "msg-cli", true, os.Stdout, msg.LDebug) //configure the global l *msg.Logger
+	if err != nil {
+		msg.Fatal(err.Error())
+	}
+	msg.Info("New Logger configured!")
+}
+
+func main() {
+	for f, F := range msg.Formats { // lets test them all
+		if !strings.Contains(f, "rfc") {
+			for _, b := range []bool{false, true} {
+				// to use a preconfigured format, you need to pass the format string to msg.New(). For this, String() method is available on preconfigured Formats.
+				l, errL := msg.New(F.String(), msg.Formats[msg.DetailedTimeFmt].String(), "msg-"+f, b, os.Stderr, msg.LDebug)
+				if errL != nil {
+					msg.Error(errL.Error())
+				}
+				for _, lvl := range msg.Levels {
+					l.Log(msg.Lvl(lvl.ID), "Log "+lvl.Str+", format: "+f)
+				}
+			}
+		}
+	}
+	for _, lvl := range msg.Levels {
+		// send a message in this project's original format. You can pass constants directly from time lib to msg as a time format.
+		l, _ = msg.New("#%[1]d %[2]s %[4]s:%[5]d ▶ %.3[6]s %[7]s", time.Kitchen, "custom-formats", true, os.Stdout, msg.LDebug)
+		l.Log(msg.Lvl(lvl.ID), "Log "+lvl.Str+" legacy format")
+	}
+}
 ```
-%{id}           - means number of current log message
-%{module}       - means module name (that you passed to func New())
-%{time}			- means current time in format "2006-01-02 15:04:05"
-%{time:format}	- means current time in format that you want
-					(supports all formats supported by go package "time")
-%{level}		- means level name (upper case) of log message ("ERROR", "DEBUG", etc)
-%{lvl}			- means first 3 letters of level name (upper case) of log message ("ERR", "DEB", etc)
-%{file}			- means name of file in what you wanna write log
-%{filename}		- means the same as %{file}
-%{line}			- means line number of file in what you wanna write log
-%{message}		- means your log message
-```
-Non-existent verbs (like ```%{nonex-verb}``` or ```%{}```) will be replaced by an empty string.
-Invalid verbs (like ```%{inv-verb```) will be treated as plain text.
+
+[Running the above code](https://play.golang.org/p/srOvuLkIvWe) will demo all available formats (and the customized one):
+
+![image](https://user-images.githubusercontent.com/9354925/68991311-c519bb00-085d-11ea-8e00-98853feeec09.png)
+
+
+## License
+
+The [BSD 3-Clause license](http://opensource.org/licenses/BSD-3-Clause), the same as the [Go language](http://golang.org/LICENSE) and the original project https://github.com/apsdehal/go-logger
