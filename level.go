@@ -4,6 +4,8 @@
 package log
 
 import (
+	"fmt"
+
 	"github.com/szampardi/msg/ansi"
 	"github.com/szampardi/msg/unicode"
 )
@@ -21,6 +23,14 @@ const (
 	LDebug
 	LDefault = LNotice
 )
+
+func IsValidLevel(i int) error {
+	l := Lvl(i)
+	if l < LCrit || l > LDebug {
+		return fmt.Errorf("invalid log level %d", i)
+	}
+	return nil
+}
 
 // Level struct
 type Level struct {
