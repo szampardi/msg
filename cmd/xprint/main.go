@@ -12,21 +12,24 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 	"text/template"
 
 	log "github.com/szampardi/msg"
 )
 
 var (
-	l         log.Logger         //
-	data      []interface{}      //
-	name                         = flag.String("n", os.Args[0], "set name for verbose logging")
-	logfmt    log.Format         = log.Formats[log.PlainFormat] //
-	loglvl    log.Lvl            = log.LInfo                    //
-	logcolor  bool               = false                        //
-	_template *template.Template                                //
-	output    *os.File                                          //
-	argsfirst bool               = false                        //
+	l         log.Logger                                                                                          //
+	data      = make(map[string]interface{})                                                                      //
+	dataIndex []string                                                                                            //
+	name                                                                                                          = flag.String("n", os.Args[0], "set name for verbose logging")
+	logfmt    log.Format                                                                                          = log.Formats[log.PlainFormat]             //
+	loglvl    log.Lvl                                                                                             = log.LInfo                                //
+	logcolor                                                                                                      = flag.Bool("c", false, "colorize output") ////
+	_template *template.Template                                                                                                                             //
+	env       = flag.Bool("e", false, "use environment variables when filling templates")                                                                    //
+	output    *os.File                                                                                                                                       //
+	argsfirst = flag.Bool("a", false, "output arguments (if any) before stdin (if any), instead of the opposite")                                            //
 )
 
 func setFlags() {
@@ -51,17 +54,6 @@ func setFlags() {
 			}
 			loglvl = log.Lvl(i)
 			return log.IsValidLevel(i)
-		},
-	)
-	flag.Func(
-		"c",
-		"colorize output",
-		func(value string) error {
-			b, err := strconv.ParseBool(value)
-			if err == nil {
-				logcolor = b
-			}
-			return err
 		},
 	)
 	flag.Func(
@@ -93,22 +85,13 @@ func setFlags() {
 			return err
 		},
 	)
-	flag.Func(
-		"a",
-		"output arguments (if any) before stdin (if any), instead of the opposite",
-		func(value string) error {
-			b, err := strconv.ParseBool(value)
-			if err == nil {
-				argsfirst = b
-			}
-			return err
-		},
-	)
 }
 
 func appendData(args []string) {
-	for _, s := range args {
-		data = append(data, s)
+	for n, s := range args {
+		key := fmt.Sprintf("%s%d", "arg", n)
+		data[key] = s
+		dataIndex = append(dataIndex, key)
 	}
 }
 
@@ -121,7 +104,7 @@ func init() {
 	if err := log.IsValidLevel(int(loglvl)); err != nil {
 		panic(err)
 	}
-	l, err = log.New(logfmt.String(), log.Formats[log.DefTimeFmt].String(), loglvl, logcolor, *name)
+	l, err = log.New(logfmt.String(), log.Formats[log.DefTimeFmt].String(), loglvl, *logcolor, *name)
 	if err != nil {
 		panic(err)
 	}
@@ -129,7 +112,7 @@ func init() {
 		l.SetOutput(output)
 	}
 	args := flag.Args()
-	if argsfirst {
+	if *argsfirst {
 		appendData(args)
 	} else {
 		defer appendData(args)
@@ -140,7 +123,8 @@ func init() {
 		if err != nil {
 			l.Errorf("reading %s: %s", stdin.Name(), err)
 		} else {
-			data = append(data, string(b))
+			data["stdin"] = string(b)
+			dataIndex = append(dataIndex, "stdin")
 		}
 	}
 }
@@ -149,39 +133,38 @@ func main() {
 	if len(data) < 1 {
 		os.Exit(0)
 	}
+	buf := new(bytes.Buffer)
 	if _template != nil {
-		buf := new(bytes.Buffer)
+		if *env {
+			for _, v := range os.Environ() {
+				split := strings.Split(v, "=")
+				data[split[0]] = strings.Join(split[1:], "=")
+				dataIndex = append(dataIndex, split[0])
+			}
+		}
 		if err := _template.Execute(buf, data); err != nil {
 			panic(err)
 		}
-		switch loglvl {
-		case log.LCrit:
-			l.Criticalf("%s", buf.String())
-		case log.LErr:
-			l.Errorf("%s", buf.String())
-		case log.LWarn:
-			l.Warningf("%s", buf.String())
-		case log.LNotice:
-			l.Noticef("%s", buf.String())
-		case log.LInfo:
-			l.Infof("%s", buf.String())
-		case log.LDebug:
-			l.Debugf("%s", buf.String())
-		}
 	} else {
-		switch loglvl {
-		case log.LCrit:
-			l.Criticalf("%s", data...)
-		case log.LErr:
-			l.Errorf("%s", data...)
-		case log.LWarn:
-			l.Warningf("%s", data...)
-		case log.LNotice:
-			l.Noticef("%s", data...)
-		case log.LInfo:
-			l.Infof("%s", data...)
-		case log.LDebug:
-			l.Debugf("%s", data...)
+		for _, s := range dataIndex {
+			_, err := fmt.Fprintf(buf, "%s", data[s])
+			if err != nil {
+				panic(err)
+			}
 		}
+	}
+	switch loglvl {
+	case log.LCrit:
+		l.Criticalf("%s", buf.String())
+	case log.LErr:
+		l.Errorf("%s", buf.String())
+	case log.LWarn:
+		l.Warningf("%s", buf.String())
+	case log.LNotice:
+		l.Noticef("%s", buf.String())
+	case log.LInfo:
+		l.Infof("%s", buf.String())
+	case log.LDebug:
+		l.Debugf("%s", buf.String())
 	}
 }
