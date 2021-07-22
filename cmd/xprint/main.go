@@ -12,22 +12,25 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	log "github.com/szampardi/msg"
 )
 
 var (
-	l         log.Logger                                                                                                                         //
-	data      = make(map[string]interface{})                                                                                                     //
-	dataIndex []string                                                                                                                           //
-	name                                     = flag.String("n", os.Args[0], "set name for verbose logging")                                      //
-	logfmt    log.Format                     = log.Formats[log.PlainFormat]                                                                      //
-	loglvl    log.Lvl                        = log.LNotice                                                                                       //
-	logcolor                                 = flag.Bool("c", false, "colorize output")                                                          ////
-	_template *template.Template                                                                                                                 //
-	env       *bool                          = flag.Bool("e", false, "use environment variables when filling templates")                         //
-	output    *os.File                                                                                                                           //
-	argsfirst *bool                          = flag.Bool("a", false, "output arguments (if any) before stdin (if any), instead of the opposite") //
+	l                     log.Logger                                                                                                                         //
+	data                  = make(map[string]interface{})                                                                                                     //
+	dataIndex             []string                                                                                                                           //
+	name                                                 = flag.String("n", os.Args[0], "set name for verbose logging")                                      //
+	logfmt                log.Format                     = log.Formats[log.PlainFormat]                                                                      //
+	loglvl                log.Lvl                        = log.LNotice                                                                                       //
+	logcolor                                             = flag.Bool("c", false, "colorize output")                                                          ////
+	_template             *template.Template                                                                                                                 //
+	env                   *bool                          = flag.Bool("e", false, "use environment variables when filling templates")                         //
+	output                *os.File                                                                                                                           //
+	argsfirst             *bool                          = flag.Bool("a", false, "output arguments (if any) before stdin (if any), instead of the opposite") //
+	showVersion           *bool                          = flag.Bool("v", false, "print build version/date and exit")
+	semver, commit, built                                = "v0.0.0-dev", "local", time.Now()
 )
 
 func setFlags() {
@@ -98,6 +101,10 @@ func init() {
 	setFlags()
 	for !flag.Parsed() {
 		flag.Parse()
+	}
+	if *showVersion {
+		fmt.Fprintf(os.Stderr, "github.com/szampardi/xprint version %s (%s) built %s\n", semver, commit, built)
+		os.Exit(0)
 	}
 	if err := log.IsValidLevel(int(loglvl)); err != nil {
 		panic(err)
