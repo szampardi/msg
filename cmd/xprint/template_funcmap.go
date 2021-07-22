@@ -1,3 +1,6 @@
+// Copyright (c) 2019-2021 SILVANO ZAMPARDI, All rights reserved.
+// This source code license can be found in the LICENSE file in the root directory of this source tree.
+
 package main
 
 import (
@@ -13,6 +16,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -261,6 +265,20 @@ var tplFuncMap *template.FuncMap = &template.FuncMap{
 			return or[0]
 		}
 		return ""
+	},
+	"cmd": func(cmd string, args ...string) (string, error) {
+		x := exec.Command(cmd, args...)
+		outbuf, errbuf := new(bytes.Buffer), new(bytes.Buffer)
+		x.Stderr = errbuf
+		x.Stdout = outbuf
+		err := x.Run()
+		if err != nil {
+			return "", err
+		}
+		if errbuf.Len() > 0 {
+			err = fmt.Errorf("%s error: %s", cmd, errbuf.String())
+		}
+		return outbuf.String(), err
 	},
 	"join":       strings.Join,
 	"split":      strings.Split,

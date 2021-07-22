@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
-	"time"
 
 	log "github.com/szampardi/msg"
 )
@@ -26,11 +25,11 @@ var (
 	loglvl                log.Lvl                        = log.LNotice                                                                                       //
 	logcolor                                             = flag.Bool("c", false, "colorize output")                                                          ////
 	_template             *template.Template                                                                                                                 //
-	env                   *bool                          = flag.Bool("e", false, "use environment variables when filling templates")                         //
+	unsafe                *bool                          = flag.Bool("u", false, "allow evaluation of dangerous template functions such as cmd,env")         //
 	output                *os.File                                                                                                                           //
 	argsfirst             *bool                          = flag.Bool("a", false, "output arguments (if any) before stdin (if any), instead of the opposite") //
 	showVersion           *bool                          = flag.Bool("v", false, "print build version/date and exit")
-	semver, commit, built                                = "v0.0.0-dev", "local", time.Now()
+	semver, commit, built                                = "v0.0.0-dev", "local", "a while ago"
 )
 
 func setFlags() {
@@ -102,6 +101,10 @@ func init() {
 	for !flag.Parsed() {
 		flag.Parse()
 	}
+	if !*unsafe {
+		delete(*tplFuncMap, "cmd")
+		delete(*tplFuncMap, "env")
+	}
 	if *showVersion {
 		fmt.Fprintf(os.Stderr, "github.com/szampardi/xprint version %s (%s) built %s\n", semver, commit, built)
 		os.Exit(0)
@@ -137,13 +140,6 @@ func init() {
 func main() {
 	buf := new(bytes.Buffer)
 	if _template != nil {
-		if *env {
-			for _, v := range os.Environ() {
-				split := strings.Split(v, "=")
-				data[split[0]] = strings.Join(split[1:], "=")
-				dataIndex = append(dataIndex, split[0])
-			}
-		}
 		if err := _template.Execute(buf, data); err != nil {
 			panic(err)
 		}
