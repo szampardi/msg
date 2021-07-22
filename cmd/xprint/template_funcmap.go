@@ -77,7 +77,7 @@ var tplFuncMap *template.FuncMap = &template.FuncMap{
 			b = make([]byte, base64.StdEncoding.DecodedLen(len(t)))
 			n, err = base64.StdEncoding.Decode(b, []byte(t))
 		case []byte:
-			b = make([]byte, base64.StdEncoding.EncodedLen(len(t)))
+			b = make([]byte, base64.StdEncoding.DecodedLen(len(t)))
 			n, err = base64.StdEncoding.Decode(b, t)
 		default:
 			return nil, fmt.Errorf("can only work with string or []byte, not %T", t)
