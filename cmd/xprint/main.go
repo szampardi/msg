@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
-	"strings"
 	"text/template"
 
 	log "github.com/szampardi/msg"
@@ -58,11 +57,12 @@ func setFlags() {
 	)
 	flag.Func(
 		"t",
-		"template (string or files(csv))",
+		"template (string or file)",
 		func(value string) error {
-			var err error
-			_template, err = template.New(os.Args[0]).Funcs(*tplFuncMap).ParseFiles(strings.Split(value, ",")...)
-			if err != nil {
+			_, err := os.Stat(value)
+			if err == nil {
+				_template, err = template.New(value).Funcs(*tplFuncMap).ParseFiles(value)
+			} else {
 				_template, err = template.New(os.Args[0]).Funcs(*tplFuncMap).Parse(value)
 			}
 			return err
