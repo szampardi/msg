@@ -56,12 +56,12 @@ func setFlags() {
 	)
 	flag.Func(
 		"t",
-		"template (string or file)",
+		"template (string or files(csv))",
 		func(value string) error {
 			var err error
-			_template, err = template.ParseFiles(value)
+			_template, err = template.New(os.Args[0]).Funcs(*tplFuncMap).ParseFiles(strings.Split(value, ",")...)
 			if err != nil {
-				_template, err = template.New(os.Args[0]).Parse(value)
+				_template, err = template.New(os.Args[0]).Funcs(*tplFuncMap).Parse(value)
 			}
 			return err
 		},
@@ -102,7 +102,7 @@ func init() {
 	if err := log.IsValidLevel(int(loglvl)); err != nil {
 		panic(err)
 	}
-	l, err = log.New(logfmt.String(), log.Formats[log.DefTimeFmt].String(), loglvl, *logcolor, *name)
+	l, err = log.New(logfmt.String(), log.Formats[log.DefTimeFmt].String(), loglvl, *logcolor, *name, os.Stdout)
 	if err != nil {
 		panic(err)
 	}
