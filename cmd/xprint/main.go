@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 	"text/template"
 
 	log "github.com/szampardi/msg"
@@ -25,6 +26,7 @@ var (
 	logcolor                                             = flag.Bool("c", false, "colorize output")                                                          ////
 	_template             *template.Template                                                                                                                 //
 	unsafe                *bool                          = flag.Bool("u", false, "allow evaluation of dangerous template functions such as cmd,env")         //
+	showFns               *bool                          = flag.Bool("F", false, "print available template functions and exit")                              //
 	output                *os.File                                                                                                                           //
 	argsfirst             *bool                          = flag.Bool("a", false, "output arguments (if any) before stdin (if any), instead of the opposite") //
 	showVersion           *bool                          = flag.Bool("v", false, "print build version/date and exit")
@@ -61,9 +63,9 @@ func setFlags() {
 		func(value string) error {
 			_, err := os.Stat(value)
 			if err == nil {
-				_template, err = template.New(value).Funcs(*tplFuncMap).ParseFiles(value)
+				_template, err = template.New(value).Funcs(tplFuncMap).ParseFiles(value)
 			} else {
-				_template, err = template.New(os.Args[0]).Funcs(*tplFuncMap).Parse(value)
+				_template, err = template.New(os.Args[0]).Funcs(tplFuncMap).Parse(value)
 			}
 			return err
 		},
@@ -101,13 +103,16 @@ func init() {
 	for !flag.Parsed() {
 		flag.Parse()
 	}
-	if !*unsafe {
-		delete(*tplFuncMap, "cmd")
-		delete(*tplFuncMap, "env")
-	}
 	if *showVersion {
-		fmt.Fprintf(os.Stderr, "github.com/szampardi/xprint version %s (%s) built %s\n", semver, commit, built)
+		fmt.Fprintf(os.Stderr, "github.com/szampardi/msg/cmd/xprint version %s (%s) built %s\n", semver, commit, built)
 		os.Exit(0)
+	}
+	if *showFns {
+		fns := []string{}
+		for s := range tplFuncMap {
+			fns = append(fns, s)
+		}
+		fmt.Fprintf(os.Stderr, "%v", strings.Join(fns, "\n"))
 	}
 	if err := log.IsValidLevel(int(loglvl)); err != nil {
 		panic(err)

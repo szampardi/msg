@@ -25,7 +25,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var tplFuncMap *template.FuncMap = &template.FuncMap{
+var tplFuncMap template.FuncMap = template.FuncMap{
 	"tojson": func(in interface{}) (string, error) {
 		b, err := json.Marshal(in)
 		if err != nil {
@@ -256,30 +256,9 @@ var tplFuncMap *template.FuncMap = &template.FuncMap{
 		}
 		return ptxt, nil
 	},
-	"random": random,
-	"env": func(in string, or ...string) string {
-		if v, ok := os.LookupEnv(in); ok {
-			return v
-		}
-		if len(or) > 0 {
-			return or[0]
-		}
-		return ""
-	},
-	"cmd": func(cmd string, args ...string) (string, error) {
-		x := exec.Command(cmd, args...)
-		outbuf, errbuf := new(bytes.Buffer), new(bytes.Buffer)
-		x.Stderr = errbuf
-		x.Stdout = outbuf
-		err := x.Run()
-		if err != nil {
-			return "", err
-		}
-		if errbuf.Len() > 0 {
-			err = fmt.Errorf("%s error: %s", cmd, errbuf.String())
-		}
-		return outbuf.String(), err
-	},
+	"env":        env,
+	"cmd":        cmd,
+	"random":     random,
 	"join":       strings.Join,
 	"split":      strings.Split,
 	"trimprefix": strings.TrimPrefix,
@@ -288,6 +267,37 @@ var tplFuncMap *template.FuncMap = &template.FuncMap{
 	"upper":      strings.ToUpper,
 	"pathbase":   filepath.Base,
 	"pathext":    filepath.Ext,
+}
+
+func env(in string, or ...string) string {
+	if !*unsafe {
+		panic(*unsafe)
+	}
+	if v, ok := os.LookupEnv(in); ok {
+		return v
+	}
+	if len(or) > 0 {
+		return or[0]
+	}
+	return ""
+}
+
+func cmd(prog string, args ...string) (string, error) {
+	if !*unsafe {
+		panic(*unsafe)
+	}
+	x := exec.Command(prog, args...)
+	outbuf, errbuf := new(bytes.Buffer), new(bytes.Buffer)
+	x.Stderr = errbuf
+	x.Stdout = outbuf
+	err := x.Run()
+	if err != nil {
+		return "", err
+	}
+	if errbuf.Len() > 0 {
+		err = fmt.Errorf("%s error: %s", prog, errbuf.String())
+	}
+	return outbuf.String(), err
 }
 
 func random(size int) []byte {
