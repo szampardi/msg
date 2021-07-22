@@ -89,7 +89,7 @@ var (
 
 var (
 	logNo            uint32
-	activeFormat     string = Formats[StdFormat]._String
+	activeFormat     string = Formats[PlainFormat]._String
 	activeTimeFormat string = Formats[DefTimeFmt]._String
 )
 

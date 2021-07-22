@@ -5,6 +5,7 @@ package log
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 )
@@ -200,6 +201,10 @@ func StackAsError(message string) {
 // StackAsCritical Prints a goroutine's execution stack as critical with an optional message at the begining
 func StackAsCritical(message string) {
 	defaultLogger.logInternal(LCrit, stack(message), 2)
+}
+
+func SetOutput(w io.Writer) {
+	defaultLogger.SetOutput(w)
 }
 
 func stack(s string) string {

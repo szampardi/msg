@@ -5,12 +5,12 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
-	"strings"
 	"text/template"
 
 	log "github.com/szampardi/msg"
@@ -27,6 +27,7 @@ var (
 	_template             *template.Template                                                                                                                 //
 	unsafe                *bool                          = flag.Bool("u", false, "allow evaluation of dangerous template functions such as cmd,env")         //
 	showFns               *bool                          = flag.Bool("F", false, "print available template functions and exit")                              //
+	debug                 *bool                          = flag.Bool("D", false, "debug template rendering activities")                                      //
 	output                *os.File                                                                                                                           //
 	argsfirst             *bool                          = flag.Bool("a", false, "output arguments (if any) before stdin (if any), instead of the opposite") //
 	showVersion           *bool                          = flag.Bool("v", false, "print build version/date and exit")
@@ -61,11 +62,14 @@ func setFlags() {
 		"t",
 		"template (string or file)",
 		func(value string) error {
+			if *debug {
+				go usageDebugger()
+			}
 			_, err := os.Stat(value)
 			if err == nil {
-				_template, err = template.New(value).Funcs(tplFuncMap).ParseFiles(value)
+				_template, err = template.New(value).Funcs(buildFuncMap(*unsafe)).ParseFiles(value)
 			} else {
-				_template, err = template.New(os.Args[0]).Funcs(tplFuncMap).Parse(value)
+				_template, err = template.New(os.Args[0]).Funcs(buildFuncMap(*unsafe)).Parse(value)
 			}
 			return err
 		},
@@ -108,11 +112,13 @@ func init() {
 		os.Exit(0)
 	}
 	if *showFns {
-		fns := []string{}
-		for s := range tplFuncMap {
-			fns = append(fns, s)
+		enc := json.NewEncoder(os.Stderr)
+		enc.SetIndent("", "  ")
+		err := enc.Encode(templateFnsInfo)
+		if err != nil {
+			panic(err)
 		}
-		fmt.Fprintf(os.Stderr, "%v", strings.Join(fns, "\n"))
+		os.Exit(0)
 	}
 	if err := log.IsValidLevel(int(loglvl)); err != nil {
 		panic(err)
@@ -147,6 +153,9 @@ func main() {
 	if _template != nil {
 		if err := _template.Execute(buf, data); err != nil {
 			panic(err)
+		}
+		if *debug {
+			trackWg.Wait()
 		}
 	} else {
 		for _, s := range dataIndex {
