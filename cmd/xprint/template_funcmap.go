@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,6 +27,7 @@ import (
 	"time"
 
 	log "github.com/szampardi/msg"
+	"golang.org/x/term"
 	"gopkg.in/yaml.v2"
 )
 
@@ -35,6 +37,34 @@ type fn struct {
 	Signature   string      `json:"function"`
 	Unsafe      bool        `json:"unsafe"`
 }
+
+/* src/text/template/funcs.go
+func builtins() FuncMap {
+	return FuncMap{
+		"and":      and,
+		"call":     call,
+		"html":     HTMLEscaper,
+		"index":    index,
+		"slice":    slice,
+		"js":       JSEscaper,
+		"len":      length,
+		"not":      not,
+		"or":       or,
+		"print":    fmt.Sprint,
+		"printf":   fmt.Sprintf,
+		"println":  fmt.Sprintln,
+		"urlquery": URLQueryEscaper,
+
+		// Comparisons
+		"eq": eq, // ==
+		"ge": ge, // >=
+		"gt": gt, // >
+		"le": le, // <=
+		"lt": lt, // <
+		"ne": ne, // !=
+	}
+}
+*/
 
 var templateFnsInfo = map[string]fn{
 	"add": {
@@ -114,6 +144,12 @@ var templateFnsInfo = map[string]fn{
 		"hex encode",
 		reflect.TypeOf(hexenc).String(),
 		false,
+	},
+	"http": {
+		_http,
+		"HEAD|GET|POST, url, body(raw), headers",
+		reflect.TypeOf(_http).String(),
+		true,
 	},
 	"join": {
 		strings.Join,
@@ -199,6 +235,12 @@ var templateFnsInfo = map[string]fn{
 		reflect.TypeOf(strings.ToUpper).String(),
 		false,
 	},
+	"userinput": {
+		userinput,
+		"get interactive user input (needs a terminal), if $2 bool is provided and true, term.ReadPassword is used. $1 is used as hint",
+		reflect.TypeOf(userinput).String(),
+		true,
+	},
 	"writefile": {
 		writefile,
 		"store data to a file (append if it already exists)",
@@ -236,7 +278,7 @@ func trackUsage(_fn string, output interface{}, err error, args ...interface{}) 
 		fnTrackChan <- &fnTrack{
 			T:      time.Now(),
 			F:      _fn,
-			Args:   args,
+			Args:   args[:],
 			Output: output,
 			Err:    err,
 		}
@@ -252,8 +294,61 @@ func usageDebugger() {
 	}
 }
 
+func _http(method, url string, body interface{}, headers map[string]string) (out *http.Response, err error) {
+	method = strings.ToUpper(method)
+	defer trackUsage("http", out, err, method, url, headers, body)
+	var bodyr io.Reader
+	switch t := body.(type) {
+	case string:
+		bodyr = bytes.NewBuffer([]byte(t))
+	case []byte:
+		bodyr = bytes.NewBuffer(t)
+	case io.Reader:
+		bodyr = t
+	default:
+		err = fmt.Errorf("invalid argument %T, supported types: io.Reader, string or []byte", t)
+	}
+	var req *http.Request
+	req, err = http.NewRequest(method, url, bodyr)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	out, err = http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func userinput(title string, hidden ...bool) (out string, err error) {
+	defer trackUsage("userinput", &out, err, title, hidden[:])
+	h := false
+	if len(hidden) > 0 {
+		h = hidden[0]
+	}
+	if h {
+		log.Noticef("(%s) input secret now, followed by newline", title)
+		b, err := term.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			return "", err
+		}
+		out = string(b)
+	} else {
+		log.Noticef("(%s) reading input, CTRL-D to stop", title)
+		b, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return "", err
+		}
+		out = strings.TrimSpace(string(b))
+	}
+	return out, err
+}
+
 func tojson(in interface{}) (out string, err error) {
-	defer trackUsage("tojson", out, err, in)
+	defer trackUsage("tojson", &out, err, in)
 	b, err := json.Marshal(in)
 	if err != nil {
 		return "", err
@@ -262,16 +357,27 @@ func tojson(in interface{}) (out string, err error) {
 	return out, nil
 }
 
-func fromjson(in string) (out map[string]interface{}, err error) {
-	defer trackUsage("fromjson", out, err, in)
-	if err := json.Unmarshal([]byte(in), &out); err != nil {
-		return nil, err
+func fromjson(in interface{}) (out interface{}, err error) {
+	defer trackUsage("fromjson", &out, err, in)
+	switch t := in.(type) {
+	case string:
+		if err := json.Unmarshal([]byte(t), &out); err != nil {
+			return nil, err
+		}
+	case []byte:
+		if err := json.Unmarshal(t, &out); err != nil {
+			return nil, err
+		}
+	case io.Reader:
+		if err = json.NewDecoder(t).Decode(&out); err != nil {
+			return nil, err
+		}
 	}
 	return out, nil
 }
 
 func toyaml(in interface{}) (out string, err error) {
-	defer trackUsage("toyaml", out, err, in)
+	defer trackUsage("toyaml", &out, err, in)
 	b, err := yaml.Marshal(in)
 	if err != nil {
 		return "", err
@@ -280,61 +386,101 @@ func toyaml(in interface{}) (out string, err error) {
 	return out, nil
 }
 
-func fromyaml(in string) (out map[string]interface{}, err error) {
-	defer trackUsage("fromyaml", out, err, in)
-	if err := yaml.Unmarshal([]byte(in), &out); err != nil {
+func fromyaml(in interface{}) (out interface{}, err error) {
+	defer trackUsage("fromyaml", &out, err, in)
+	switch t := in.(type) {
+	case string:
+		if err := yaml.Unmarshal([]byte(t), &out); err != nil {
+			return nil, err
+		}
+	case []byte:
+		if err := yaml.Unmarshal(t, &out); err != nil {
+			return nil, err
+		}
+	case io.Reader:
+		if err = yaml.NewDecoder(t).Decode(&out); err != nil {
+			return nil, err
+		}
+	default:
+		err = fmt.Errorf("invalid argument %T, supported types: io.Reader, string or []byte", t)
 		return nil, err
 	}
 	return out, nil
 }
 
 func b64enc(in interface{}) (out string, err error) {
-	defer trackUsage("b64enc", out, err, in)
+	defer trackUsage("b64enc", &out, err, in)
 	var b []byte
 	switch t := in.(type) {
 	case string:
 		b = make([]byte, base64.StdEncoding.EncodedLen(len(t)))
 		base64.StdEncoding.Encode(b, []byte(t))
+		out = string(b)
 	case []byte:
 		b = make([]byte, base64.StdEncoding.EncodedLen(len(t)))
 		base64.StdEncoding.Encode(b, t)
+		out = string(b)
+	case io.Reader:
+		buf := new(bytes.Buffer)
+		_, err = io.Copy(base64.NewEncoder(base64.RawStdEncoding, buf), t)
+		if err != nil {
+			return "", err
+		}
+		out = buf.String()
 	default:
-		err = fmt.Errorf("invalid argument %T, supported types: string or []byte", t)
+		err = fmt.Errorf("invalid argument %T, supported types: io.Reader, string or []byte", t)
 		return "", err
 	}
-	out = string(b)
 	return out, nil
 }
 
 func b64dec(in interface{}) (out []byte, err error) {
-	defer trackUsage("b64dec", out, err, in)
+	defer trackUsage("b64dec", &out, err, in)
 	var b []byte
 	var n int
 	switch t := in.(type) {
 	case string:
 		b = make([]byte, base64.StdEncoding.DecodedLen(len(t)))
 		n, err = base64.StdEncoding.Decode(b, []byte(t))
+		if err != nil {
+			return nil, err
+		}
+		out = b[:n]
 	case []byte:
 		b = make([]byte, base64.StdEncoding.DecodedLen(len(t)))
 		n, err = base64.StdEncoding.Decode(b, t)
+		if err != nil {
+			return nil, err
+		}
+		out = b[:n]
+	case io.Reader:
+		buf := new(bytes.Buffer)
+		_, err = io.Copy(buf, base64.NewDecoder(base64.RawStdEncoding, t))
+		if err != nil {
+			return nil, err
+		}
+		out = buf.Bytes()
 	default:
-		err = fmt.Errorf("invalid argument %T, supported types: string or []byte", t)
+		err = fmt.Errorf("invalid argument %T, supported types: io.Reader, string or []byte", t)
 		return nil, err
 	}
-	if err != nil {
-		return nil, err
-	}
-	out = b[:n]
 	return out, nil
 }
 
 func hexenc(in interface{}) (out string, err error) {
-	defer trackUsage("hexenc", out, err, in)
+	defer trackUsage("hexenc", &out, err, in)
 	switch t := in.(type) {
 	case string:
 		out = hex.EncodeToString([]byte(t))
 	case []byte:
 		out = hex.EncodeToString(t)
+	case io.Reader:
+		buf := new(bytes.Buffer)
+		_, err = io.Copy(hex.NewEncoder(buf), t)
+		if err != nil {
+			return "", err
+		}
+		out = buf.String()
 	default:
 		err = fmt.Errorf("invalid argument %T, supported types: string or []byte", t)
 		return "", err
@@ -343,36 +489,49 @@ func hexenc(in interface{}) (out string, err error) {
 }
 
 func hexdec(in interface{}) (out []byte, err error) {
-	defer trackUsage("hexdec", out, err, in)
+	defer trackUsage("hexdec", &out, err, in)
 	var b []byte
 	var n int
 	switch t := in.(type) {
 	case string:
 		b, err = hex.DecodeString(t)
+		if err != nil {
+			return nil, err
+		}
+		out = b[:n]
 	case []byte:
 		b = make([]byte, hex.DecodedLen(len(t)))
 		n, err = hex.Decode(b, t)
+		if err != nil {
+			return nil, err
+		}
+		out = b[:n]
+	case io.Reader:
+		buf := new(bytes.Buffer)
+		_, err = io.Copy(buf, hex.NewDecoder(t))
+		if err != nil {
+			return nil, err
+		}
+		out = buf.Bytes()
 	default:
 		err = fmt.Errorf("invalid argument %T, supported types: string or []byte", t)
 		return nil, err
 	}
-	if err != nil {
-		return nil, err
-	}
-	out = b[:n]
 	return out, nil
 }
 
 func _gzip(in interface{}) (out []byte, err error) {
-	defer trackUsage("gzip", out, err, in)
-	var todo []byte
+	defer trackUsage("gzip", &out, err, in)
+	var todo io.Reader
 	switch t := in.(type) {
 	case string:
-		todo = []byte(t)
+		todo = bytes.NewBuffer([]byte(t))
 	case []byte:
+		todo = bytes.NewBuffer(t)
+	case io.Reader:
 		todo = t
 	default:
-		err = fmt.Errorf("invalid argument %T, supported types: string or []byte", t)
+		err = fmt.Errorf("invalid argument %T, supported types: io.Reader, string or []byte", t)
 		return nil, err
 	}
 	buf := new(bytes.Buffer)
@@ -380,7 +539,7 @@ func _gzip(in interface{}) (out []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = io.Copy(gzw, bytes.NewBuffer(todo))
+	_, err = io.Copy(gzw, todo)
 	if err != nil {
 		return nil, err
 	}
@@ -394,15 +553,31 @@ func _gzip(in interface{}) (out []byte, err error) {
 	return out, nil
 }
 
-func _gunzip(in []byte) (out []byte, err error) {
-	defer trackUsage("gunzip", out, err, in)
-	gzr, err := gzip.NewReader(bytes.NewBuffer(in))
+func _gunzip(in interface{}) (out []byte, err error) {
+	defer trackUsage("gunzip", &out, err, in)
+	var todo io.Reader
+	switch t := in.(type) {
+	case string:
+		// try to go on assuming its base64-encoded
+		b, err := b64dec(t)
+		if err != nil {
+			return nil, err
+		}
+		todo = bytes.NewBuffer(b)
+	case []byte:
+		todo = bytes.NewBuffer(t)
+	case io.Reader:
+		todo = t
+	default:
+		err = fmt.Errorf("invalid argument %T, supported types: io.Reader or []byte", t)
+		return nil, err
+	}
+	gzr, err := gzip.NewReader(todo)
 	if err != nil {
 		return nil, err
 	}
 	buf := new(bytes.Buffer)
-	_, err = io.Copy(buf, gzr)
-	if err != nil {
+	if _, err = io.Copy(buf, gzr); err != nil {
 		return nil, err
 	}
 	if err = gzr.Close(); err != nil {
@@ -413,7 +588,7 @@ func _gunzip(in []byte) (out []byte, err error) {
 }
 
 func rawfile(in string) (out []byte, err error) {
-	defer trackUsage("rawfile", out, err, in)
+	defer trackUsage("rawfile", &out, err, in)
 	f, err := os.Open(in)
 	if err != nil {
 		return nil, err
@@ -423,7 +598,7 @@ func rawfile(in string) (out []byte, err error) {
 }
 
 func textfile(in string) (out string, err error) {
-	defer trackUsage("textfile", out, err, in)
+	defer trackUsage("textfile", &out, err, in)
 	f, err := os.Open(in)
 	if err != nil {
 		return "", err
@@ -442,22 +617,24 @@ func writefile(in interface{}, fpath string) (out string, err error) {
 	if err != nil {
 		return "", err
 	}
-	var buf *bytes.Buffer
+	var todo io.Reader
 	switch t := in.(type) {
 	case string:
-		buf = bytes.NewBuffer([]byte(t))
+		todo = bytes.NewBuffer([]byte(t))
 	case []byte:
-		buf = bytes.NewBuffer(t)
+		todo = bytes.NewBuffer(t)
+	case io.Reader:
+		todo = t
 	default:
-		err = fmt.Errorf("invalid argument %T, supported types: string or []byte", t)
+		err = fmt.Errorf("invalid argument %T, supported types: io.Reader, string or []byte", t)
 		return "", err
 	}
-	_, err = io.Copy(f, buf)
+	_, err = io.Copy(f, todo)
 	return "", err
 }
 
 func stringify(in interface{}) (out string, err error) {
-	defer trackUsage("string", out, err, in)
+	defer trackUsage("string", &out, err, in)
 	switch t := in.(type) {
 	case string:
 		out = t
@@ -475,13 +652,18 @@ func stringify(in interface{}) (out string, err error) {
 }
 
 func encrypt(in interface{}, b64key string, aad string) (out []byte, err error) {
-	defer trackUsage("encrypt", out, err, in, b64key, aad)
+	defer trackUsage("encrypt", &out, err, in, b64key, aad)
 	var ptxt []byte
 	switch t := in.(type) {
 	case string:
 		ptxt = []byte(t)
 	case []byte:
 		ptxt = t
+	case io.Reader:
+		ptxt, err = consumeReader(t)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		err = fmt.Errorf("invalid argument %T, supported types: string or []byte", t)
 		return nil, err
@@ -505,8 +687,23 @@ func encrypt(in interface{}, b64key string, aad string) (out []byte, err error) 
 	return out, nil
 }
 
-func decrypt(ctxt []byte, b64key string, aad string) (out []byte, err error) {
-	defer trackUsage("decrypt", out, err, ctxt, b64key, aad)
+func decrypt(in interface{}, b64key string, aad string) (out []byte, err error) {
+	defer trackUsage("decrypt", &out, err, in, b64key, aad)
+	var ctxt []byte
+	switch t := in.(type) {
+	case string: // try to go on assuming its base64-encoded
+		ctxt, err = b64dec(t)
+		if err != nil {
+			return nil, err
+		}
+	case []byte:
+		ctxt = t
+	case io.Reader:
+		ctxt, err = consumeReader(t)
+		if err != nil {
+			return nil, err
+		}
+	}
 	key, err := base64.StdEncoding.DecodeString(b64key)
 	if err != nil {
 		return nil, err
@@ -532,11 +729,38 @@ func decrypt(ctxt []byte, b64key string, aad string) (out []byte, err error) {
 }
 
 func add(in interface{}, value interface{}, key ...interface{}) (out interface{}, err error) {
-	defer trackUsage("add", out, err, in, value, key)
+	defer trackUsage("add", &out, err, in, value, key)
 	switch t := in.(type) {
-	case map[interface{}]interface{}:
+	case map[int]interface{}:
 		if len(key) < 1 {
 			return nil, fmt.Errorf("must provide a key for value to be added")
+		}
+		switch tk := key[0].(type) {
+		case int:
+			t[tk] = value
+			out = t
+			return t, nil
+		default:
+			err = fmt.Errorf("key for value to be added must be an int, not %T", tk)
+			return nil, err
+		}
+	case map[string]interface{}:
+		if len(key) < 1 {
+			return nil, fmt.Errorf("must provide a key for value to be added")
+		}
+		switch tk := key[0].(type) {
+		case string:
+			t[tk] = value
+			out = t
+			return t, nil
+		default:
+			err = fmt.Errorf("key for value to be added must be a string, not %T", tk)
+			return nil, err
+		}
+	case map[interface{}]interface{}:
+		if len(key) < 1 {
+			err = fmt.Errorf("must provide a key for value to be added")
+			return nil, err
 		}
 		// should be safe?
 		t[key[0]] = value
@@ -553,7 +777,7 @@ func add(in interface{}, value interface{}, key ...interface{}) (out interface{}
 }
 
 func env(in string, or ...string) (out string) {
-	defer trackUsage("env", out, nil, in, or)
+	defer trackUsage("env", &out, nil, in, or)
 	if v, ok := os.LookupEnv(in); ok {
 		return v
 	}
@@ -564,7 +788,7 @@ func env(in string, or ...string) (out string) {
 }
 
 func cmd(prog string, args ...string) (out string, err error) {
-	defer trackUsage("cmd", out, err, prog, args)
+	defer trackUsage("cmd", &out, err, prog, args[:])
 	x := exec.Command(prog, args...)
 	outbuf, errbuf := new(bytes.Buffer), new(bytes.Buffer)
 	x.Stderr = errbuf
@@ -581,11 +805,20 @@ func cmd(prog string, args ...string) (out string, err error) {
 }
 
 func random(size int) (out []byte) {
-	defer trackUsage("random", out, nil, size)
-	buf := make([]byte, size)
-	_, err := io.ReadFull(rand.Reader, buf)
+	defer trackUsage("random", &out, nil, size)
+	out = make([]byte, size)
+	_, err := io.ReadFull(rand.Reader, out)
 	if err != nil {
 		panic(err)
 	}
-	return buf[:size]
+	return out[:size]
+}
+
+func consumeReader(r io.Reader) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	_, err := io.Copy(buf, r)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

@@ -25,7 +25,7 @@ var (
 	loglvl                log.Lvl                        = log.LNotice                                                                                       //
 	logcolor                                             = flag.Bool("c", false, "colorize output")                                                          ////
 	_template             *template.Template                                                                                                                 //
-	unsafe                *bool                          = flag.Bool("u", false, "allow evaluation of dangerous template functions such as cmd,env")         //
+	unsafe                *bool                          = flag.Bool("u", unsafeMode(), "allow evaluation of dangerous template functions such as cmd,env")  //
 	showFns               *bool                          = flag.Bool("F", false, "print available template functions and exit")                              //
 	debug                 *bool                          = flag.Bool("D", false, "debug template rendering activities")                                      //
 	output                *os.File                                                                                                                           //
@@ -33,6 +33,14 @@ var (
 	showVersion           *bool                          = flag.Bool("v", false, "print build version/date and exit")
 	semver, commit, built                                = "v0.0.0-dev", "local", "a while ago"
 )
+
+func unsafeMode() bool {
+	envvar, err := strconv.ParseBool(os.Getenv("XPRINT_UNSAFE"))
+	if err != nil {
+		return false
+	}
+	return envvar
+}
 
 func setFlags() {
 	flag.Func(
