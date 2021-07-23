@@ -708,6 +708,12 @@ func stringify(in interface{}) (out string, err error) {
 		out = strconv.FormatBool(t)
 	case []byte:
 		out = string(t)
+	case io.Reader:
+		b, err := consumeReader(t)
+		if err != nil {
+			return "", err
+		}
+		out = string(b)
 	default:
 		err = fmt.Errorf("invalid argument %T, supported types: int, bool and []byte", t)
 		return "", err

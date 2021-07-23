@@ -120,8 +120,6 @@ func renderServer(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	j, _ := json.MarshalIndent(post, "", "  ")
-	fmt.Println(string(j))
 	buf := new(bytes.Buffer)
 	if err := tpl.Execute(buf, post.Data); err != nil {
 		l.Warningf("error processing request ( %s %s ) from %s: tpl.Execute: %s", r.Method, r.URL, r.RemoteAddr, err)
@@ -132,12 +130,11 @@ func renderServer(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	s := buf.String()
-	fmt.Println("have", s)
 	w.WriteHeader(http.StatusOK)
-	if (buf.Len() < (1 << 20)) && multipart {
-		_, err = fmt.Fprintf(w, "%s\n%s", htmlHead, htmlArticle(buf.String()))
+	if (buf.Len() > (1 << 20)) && multipart {
+		_, err = w.Write([]byte(fmt.Sprintf("%s\n%s", htmlHead, htmlArticle(buf.String()))))
 	} else {
+		w.Header().Set("content-type", "x-download/this-file-please")
 		_, err = io.Copy(w, buf)
 	}
 	if err != nil {
@@ -153,8 +150,8 @@ func uiPage(w http.ResponseWriter, r *http.Request) {
 		b, _ := httputil.DumpRequest(r, true)
 		l.Debugf("request ( %s %s ) from %s: %s", r.Method, r.URL, r.RemoteAddr, string(b))
 	}
-	if r.Method != http.MethodGet {
-		l.Errorf("rejected request ( %s %s ) from %s: bad method", r.Method, r.URL, r.RemoteAddr)
+	if r.Method != http.MethodGet || r.URL.Path != "/" {
+		l.Errorf("rejected request ( %s %s ) from %s: bad method or path", r.Method, r.URL, r.RemoteAddr)
 		bye(w, r)
 		return
 	}
@@ -174,11 +171,13 @@ const (
 <meta http-equiv="Expires" content="0" />
 <style type="text/css">
 Body {
+	background-color:darkgray;
 	display:flex;
 	font-family: Calibri, Helvetica, sans-serif;
 }
 .container {
 	margin:auto;
+	padding: 12px 20px;
     position: absolute;
     top: 50%;
     left: 50%;
@@ -190,7 +189,7 @@ Body {
 	border: 5px solid;
 	box-shadow: 0 1px 2px rgba(0, 0, 0, .1);
 	display: inline-block;
-	text-align: center;
+	overflow:auto;
 }
 textarea {
 	display: inline-block;
@@ -203,8 +202,18 @@ textarea {
     display: inline-block;
 	margin:auto;
 	position:absolute;
+	padding: 1px 1px;
 }
 p { white-space: pre-line; }
+button {
+	margin-left :5px;
+	margin-top :5px;
+}
+code {
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+	overflow: auto;
+}
 </style>
 <title>xinput render</title>
 `
@@ -214,16 +223,24 @@ p { white-space: pre-line; }
 <form method="post" action="render" enctype="multipart/form-data">
     <p>
 		<label for="text">TEMPLATE</label>
-		<textarea class="text" name="template" id="template">hello {{.client}}, it's {{timestamp}}</textarea>
+		<textarea class="text" name="template" id="template">hello {{.client}}, it's {{timestamp}}
+
+{{fns}}</textarea>
 	</p>
 	<p>
 		<label for="text">DATA</label>
-		<textarea class="text" name="data" id="data">{"client": "meeee"}</textarea>
+		<textarea class="text" name="data" id="data">{"client": "You"}</textarea>
 	</p>
 	<p>
-		<input type="file" id="templates" name="templates" accept="text/*" multiple>
+	<div class="col-md-offset-2 col-md-10 btn-group">
+		<input type="file" id="templates" name="templates" accept="text/*" multiple/>
+
+
 		<input type="submit" class="submit" value="Submit" />
-		<input type="reset" value="Reset">
+
+
+		<input type="reset" value="Reset" class="btn btn-danger pull-right"/>
+	</div>
 	</p>
 </form>
 </div>
@@ -233,18 +250,14 @@ p { white-space: pre-line; }
 )
 
 func htmlArticle(text string) string {
-	if text == "" {
-		text = "aooo"
-	}
 	return fmt.Sprintf(
-		"\n%s%s%s\n%s\n%s",
+		"\n%s%s%s\n%s",
 		`<div class="container">
 <article class="all-browsers">
-<pre><code>`,
+<pre style="max-height: 50em; overflow: scroll;"><code class="codeblock">`,
 		text,
 		`</code></pre>
 </article>`,
-		`<a href="javascript:history.back()">back</a>`,
 		`</div>
 </body>
 </html>`,
