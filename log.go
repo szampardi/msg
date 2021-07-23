@@ -207,6 +207,10 @@ func SetOutput(w io.Writer) {
 	defaultLogger.SetOutput(w)
 }
 
+func SetFormat(f string) {
+	defaultLogger.SetFormat(f)
+}
+
 func stack(s string) string {
 	if s == "" {
 		s = "Stack info\n"

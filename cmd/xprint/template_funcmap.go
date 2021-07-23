@@ -10,6 +10,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/gob"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -109,6 +110,12 @@ var templateFnsInfo = map[string]fn{
 		reflect.TypeOf(env).String(),
 		true,
 	},
+	"fromgob": {
+		fromgob,
+		"gob decode",
+		reflect.TypeOf(fromgob).String(),
+		false,
+	},
 	"fromjson": {
 		fromjson,
 		"json decode",
@@ -205,6 +212,12 @@ var templateFnsInfo = map[string]fn{
 		reflect.TypeOf(textfile).String(),
 		true,
 	},
+	"togob": {
+		togob,
+		"gob encode",
+		reflect.TypeOf(togob).String(),
+		false,
+	},
 	"tojson": {
 		tojson,
 		"json encode",
@@ -286,12 +299,14 @@ func trackUsage(_fn string, output interface{}, err error, args ...interface{}) 
 }
 
 func usageDebugger() {
-	log.SetOutput(os.Stderr)
-	for x := range fnTrackChan {
-		j, _ := json.Marshal(x)
-		log.Warningf(string(j))
-		trackWg.Done()
-	}
+	go func() {
+		log.SetOutput(os.Stderr)
+		for x := range fnTrackChan {
+			j, _ := json.Marshal(x)
+			log.Warningf(string(j))
+			trackWg.Done()
+		}
+	}()
 }
 
 func _http(method, url string, body interface{}, headers map[string]string) (out *http.Response, err error) {
@@ -345,6 +360,33 @@ func userinput(title string, hidden ...bool) (out string, err error) {
 		out = strings.TrimSpace(string(b))
 	}
 	return out, err
+}
+
+func togob(in interface{}) (out []byte, err error) {
+	defer trackUsage("togob", &out, err, in)
+	buf := new(bytes.Buffer)
+	if err = gob.NewEncoder(buf).Encode(in); err != nil {
+		return nil, err
+	}
+	out = buf.Bytes()
+	return out, nil
+}
+
+func fromgob(in interface{}) (out interface{}, err error) {
+	defer trackUsage("fromgob", &out, err, in)
+	var todo io.Reader
+	switch t := in.(type) {
+	case string:
+		todo = bytes.NewBuffer([]byte(t))
+	case []byte:
+		todo = bytes.NewBuffer(t)
+	case io.Reader:
+		todo = t
+	}
+	if err = gob.NewDecoder(todo).Decode(&out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func tojson(in interface{}) (out string, err error) {
