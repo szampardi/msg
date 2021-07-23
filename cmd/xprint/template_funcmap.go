@@ -67,206 +67,215 @@ func builtins() FuncMap {
 }
 */
 
-var templateFnsInfo = map[string]fn{
-	"add": {
-		add,
-		"add value $2 to map or slice $1, map needs $3 for value's key in map",
-		reflect.TypeOf(add).String(),
-		false,
-	},
-	"b64dec": {
-		b64dec,
-		"base64 decode",
-		reflect.TypeOf(b64dec).String(),
-		false,
-	},
-	"b64enc": {
-		b64enc,
-		"base64 encode",
-		reflect.TypeOf(b64enc).String(),
-		false,
-	},
-	"cmd": {
-		cmd,
-		"execute a command on local host",
-		reflect.TypeOf(cmd).String(),
-		true,
-	},
-	"decrypt": {
-		decrypt,
-		"decrypt data with AES_GCM: $1 ctxt, $2 base64 key, $3 AAD",
-		reflect.TypeOf(decrypt).String(),
-		false,
-	},
-	"encrypt": {
-		encrypt,
-		"encrypt data with AES_GCM: $1 ptxt, $2 base64 key, $3 AAD",
-		reflect.TypeOf(encrypt).String(),
-		false,
-	},
-	"env": {
-		env,
-		"get environment vars, optionally use a placeholder value $2",
-		reflect.TypeOf(env).String(),
-		true,
-	},
-	"fromgob": {
-		fromgob,
-		"gob decode",
-		reflect.TypeOf(fromgob).String(),
-		false,
-	},
-	"fromjson": {
-		fromjson,
-		"json decode",
-		reflect.TypeOf(fromjson).String(),
-		false,
-	},
-	"fromyaml": {
-		fromyaml,
-		"yaml decode",
-		reflect.TypeOf(fromyaml).String(),
-		false,
-	},
-	"gunzip": {
-		_gunzip,
-		"extract GZIP compressed data",
-		reflect.TypeOf(_gunzip).String(),
-		false,
-	},
-	"gzip": {
-		_gzip,
-		"compress with GZIP",
-		reflect.TypeOf(_gzip).String(),
-		false,
-	},
-	"hexdec": {
-		hexdec,
-		"hex decode",
-		reflect.TypeOf(hexdec).String(),
-		false,
-	},
-	"hexenc": {
-		hexenc,
-		"hex encode",
-		reflect.TypeOf(hexenc).String(),
-		false,
-	},
-	"http": {
-		_http,
-		"HEAD|GET|POST, url, body(raw), headers",
-		reflect.TypeOf(_http).String(),
-		true,
-	},
-	"join": {
-		strings.Join,
-		"strings.Join",
-		reflect.TypeOf(strings.Join).String(),
-		false,
-	},
-	"lower": {
-		strings.ToLower,
-		"strings.ToLower",
-		reflect.TypeOf(strings.ToLower).String(),
-		false,
-	},
-	"pathbase": {
-		filepath.Base,
-		"filepath.Base",
-		reflect.TypeOf(filepath.Base).String(),
-		false,
-	},
-	"pathext": {
-		filepath.Ext,
-		"filepath.Ext",
-		reflect.TypeOf(filepath.Ext).String(),
-		false,
-	},
-	"random": {
-		random,
-		"generate a $1 sized []byte filled with bytes from crypto.Rand",
-		reflect.TypeOf(random).String(),
-		false,
-	},
-	"rawfile": {
-		rawfile,
-		"read raw bytes from a file",
-		reflect.TypeOf(rawfile).String(),
-		true,
-	},
-	"split": {
-		strings.Split,
-		"strings.Split",
-		reflect.TypeOf(strings.Split).String(),
-		false,
-	},
-	"string": {
-		stringify,
-		"convert int/bool to string, retype []byte to string (handle with care)",
-		reflect.TypeOf(stringify).String(),
-		false,
-	},
-	"textfile": {
-		textfile,
-		"read a file as a string",
-		reflect.TypeOf(textfile).String(),
-		true,
-	},
-	"timestamp": {
-		timestamp,
-		"$1 for timezone (default UTC)",
-		reflect.TypeOf(timestamp).String(),
-		false,
-	},
-	"togob": {
-		togob,
-		"gob encode",
-		reflect.TypeOf(togob).String(),
-		false,
-	},
-	"tojson": {
-		tojson,
-		"json encode",
-		reflect.TypeOf(tojson).String(),
-		false,
-	},
-	"toyaml": {
-		toyaml,
-		"yaml encode",
-		reflect.TypeOf(toyaml).String(),
-		false,
-	},
-	"trimprefix": {
-		strings.TrimPrefix,
-		"strings.TrimPrefix",
-		reflect.TypeOf(strings.TrimPrefix).String(),
-		false,
-	},
-	"trimsuffix": {
-		strings.TrimSuffix,
-		"strings.TrimSuffix",
-		reflect.TypeOf(strings.TrimSuffix).String(),
-		false,
-	},
-	"upper": {
-		strings.ToUpper,
-		"strings.ToUpper",
-		reflect.TypeOf(strings.ToUpper).String(),
-		false,
-	},
-	"userinput": {
-		userinput,
-		"get interactive user input (needs a terminal), if $2 bool is provided and true, term.ReadPassword is used. $1 is used as hint",
-		reflect.TypeOf(userinput).String(),
-		true,
-	},
-	"writefile": {
-		writefile,
-		"store data to a file (append if it already exists)",
-		reflect.TypeOf(writefile).String(),
-		true,
-	},
-}
+var (
+	templateFnsInfo = map[string]fn{
+		"add": {
+			add,
+			"add value $2 to map or slice $1, map needs $3 for value's key in map",
+			reflect.TypeOf(add).String(),
+			false,
+		},
+		"b64dec": {
+			b64dec,
+			"base64 decode",
+			reflect.TypeOf(b64dec).String(),
+			false,
+		},
+		"b64enc": {
+			b64enc,
+			"base64 encode",
+			reflect.TypeOf(b64enc).String(),
+			false,
+		},
+		"cmd": {
+			cmd,
+			"execute a command on local host",
+			reflect.TypeOf(cmd).String(),
+			true,
+		},
+		"decrypt": {
+			decrypt,
+			"decrypt data with AES_GCM: $1 ctxt, $2 base64 key, $3 AAD",
+			reflect.TypeOf(decrypt).String(),
+			false,
+		},
+		"encrypt": {
+			encrypt,
+			"encrypt data with AES_GCM: $1 ptxt, $2 base64 key, $3 AAD",
+			reflect.TypeOf(encrypt).String(),
+			false,
+		},
+		"env": {
+			env,
+			"get environment vars, optionally use a placeholder value $2",
+			reflect.TypeOf(env).String(),
+			true,
+		},
+		"fns": {
+			fns,
+			"get list of available functions",
+			reflect.TypeOf(fns).String(),
+			false,
+		},
+		"fromgob": {
+			fromgob,
+			"gob decode",
+			reflect.TypeOf(fromgob).String(),
+			false,
+		},
+		"fromjson": {
+			fromjson,
+			"json decode",
+			reflect.TypeOf(fromjson).String(),
+			false,
+		},
+		"fromyaml": {
+			fromyaml,
+			"yaml decode",
+			reflect.TypeOf(fromyaml).String(),
+			false,
+		},
+		"gunzip": {
+			_gunzip,
+			"extract GZIP compressed data",
+			reflect.TypeOf(_gunzip).String(),
+			false,
+		},
+		"gzip": {
+			_gzip,
+			"compress with GZIP",
+			reflect.TypeOf(_gzip).String(),
+			false,
+		},
+		"hexdec": {
+			hexdec,
+			"hex decode",
+			reflect.TypeOf(hexdec).String(),
+			false,
+		},
+		"hexenc": {
+			hexenc,
+			"hex encode",
+			reflect.TypeOf(hexenc).String(),
+			false,
+		},
+		"http": {
+			_http,
+			"HEAD|GET|POST, url, body(raw), headers",
+			reflect.TypeOf(_http).String(),
+			true,
+		},
+		"join": {
+			strings.Join,
+			"strings.Join",
+			reflect.TypeOf(strings.Join).String(),
+			false,
+		},
+		"lower": {
+			strings.ToLower,
+			"strings.ToLower",
+			reflect.TypeOf(strings.ToLower).String(),
+			false,
+		},
+		"pathbase": {
+			filepath.Base,
+			"filepath.Base",
+			reflect.TypeOf(filepath.Base).String(),
+			false,
+		},
+		"pathext": {
+			filepath.Ext,
+			"filepath.Ext",
+			reflect.TypeOf(filepath.Ext).String(),
+			false,
+		},
+		"random": {
+			random,
+			"generate a $1 sized []byte filled with bytes from crypto.Rand",
+			reflect.TypeOf(random).String(),
+			false,
+		},
+		"rawfile": {
+			rawfile,
+			"read raw bytes from a file",
+			reflect.TypeOf(rawfile).String(),
+			true,
+		},
+		"split": {
+			strings.Split,
+			"strings.Split",
+			reflect.TypeOf(strings.Split).String(),
+			false,
+		},
+		"string": {
+			stringify,
+			"convert int/bool to string, retype []byte to string (handle with care)",
+			reflect.TypeOf(stringify).String(),
+			false,
+		},
+		"textfile": {
+			textfile,
+			"read a file as a string",
+			reflect.TypeOf(textfile).String(),
+			true,
+		},
+		"timestamp": {
+			timestamp,
+			"$1 for timezone (default UTC)",
+			reflect.TypeOf(timestamp).String(),
+			false,
+		},
+		"togob": {
+			togob,
+			"gob encode",
+			reflect.TypeOf(togob).String(),
+			false,
+		},
+		"tojson": {
+			tojson,
+			"json encode",
+			reflect.TypeOf(tojson).String(),
+			false,
+		},
+		"toyaml": {
+			toyaml,
+			"yaml encode",
+			reflect.TypeOf(toyaml).String(),
+			false,
+		},
+		"trimprefix": {
+			strings.TrimPrefix,
+			"strings.TrimPrefix",
+			reflect.TypeOf(strings.TrimPrefix).String(),
+			false,
+		},
+		"trimsuffix": {
+			strings.TrimSuffix,
+			"strings.TrimSuffix",
+			reflect.TypeOf(strings.TrimSuffix).String(),
+			false,
+		},
+		"upper": {
+			strings.ToUpper,
+			"strings.ToUpper",
+			reflect.TypeOf(strings.ToUpper).String(),
+			false,
+		},
+		"userinput": {
+			userinput,
+			"get interactive user input (needs a terminal), if $2 bool is provided and true, term.ReadPassword is used. $1 is used as hint",
+			reflect.TypeOf(userinput).String(),
+			true,
+		},
+		"writefile": {
+			writefile,
+			"store data to a file (append if it already exists)",
+			reflect.TypeOf(writefile).String(),
+			true,
+		},
+	}
+	templateFnsInfoString string
+)
 
 func buildFuncMap(addUnsafe bool) template.FuncMap {
 	m := make(template.FuncMap)
@@ -291,8 +300,8 @@ var (
 	trackWg     *sync.WaitGroup = &sync.WaitGroup{}
 )
 
-func trackUsage(_fn string, output interface{}, err error, args ...interface{}) {
-	if *debug {
+func trackUsage(_fn string, alwaysTrack bool, output interface{}, err error, args ...interface{}) {
+	if *debug || alwaysTrack {
 		trackWg.Add(1)
 		fnTrackChan <- &fnTrack{
 			T:      time.Now(),
@@ -324,7 +333,7 @@ func timestamp(tz ...string) time.Time {
 
 func _http(method, url string, body interface{}, headers map[string]string) (out *http.Response, err error) {
 	method = strings.ToUpper(method)
-	defer trackUsage("http", out, err, method, url, headers, body)
+	defer trackUsage("http", true, out, err, method, url, headers, body)
 	var bodyr io.Reader
 	switch t := body.(type) {
 	case string:
@@ -352,7 +361,7 @@ func _http(method, url string, body interface{}, headers map[string]string) (out
 }
 
 func userinput(title string, hidden ...bool) (out string, err error) {
-	defer trackUsage("userinput", &out, err, title, hidden[:])
+	defer trackUsage("userinput", true, &out, err, title, hidden[:])
 	h := false
 	if len(hidden) > 0 {
 		h = hidden[0]
@@ -376,7 +385,7 @@ func userinput(title string, hidden ...bool) (out string, err error) {
 }
 
 func togob(in interface{}) (out []byte, err error) {
-	defer trackUsage("togob", &out, err, in)
+	defer trackUsage("togob", false, &out, err, in)
 	buf := new(bytes.Buffer)
 	if err = gob.NewEncoder(buf).Encode(in); err != nil {
 		return nil, err
@@ -386,7 +395,7 @@ func togob(in interface{}) (out []byte, err error) {
 }
 
 func fromgob(in interface{}) (out interface{}, err error) {
-	defer trackUsage("fromgob", &out, err, in)
+	defer trackUsage("fromgob", false, &out, err, in)
 	var todo io.Reader
 	switch t := in.(type) {
 	case string:
@@ -403,7 +412,7 @@ func fromgob(in interface{}) (out interface{}, err error) {
 }
 
 func tojson(in interface{}) (out string, err error) {
-	defer trackUsage("tojson", &out, err, in)
+	defer trackUsage("tojson", false, &out, err, in)
 	b, err := json.Marshal(in)
 	if err != nil {
 		return "", err
@@ -413,7 +422,7 @@ func tojson(in interface{}) (out string, err error) {
 }
 
 func fromjson(in interface{}) (out interface{}, err error) {
-	defer trackUsage("fromjson", &out, err, in)
+	defer trackUsage("fromjson", false, &out, err, in)
 	switch t := in.(type) {
 	case string:
 		if err := json.Unmarshal([]byte(t), &out); err != nil {
@@ -432,7 +441,7 @@ func fromjson(in interface{}) (out interface{}, err error) {
 }
 
 func toyaml(in interface{}) (out string, err error) {
-	defer trackUsage("toyaml", &out, err, in)
+	defer trackUsage("toyaml", false, &out, err, in)
 	b, err := yaml.Marshal(in)
 	if err != nil {
 		return "", err
@@ -442,7 +451,7 @@ func toyaml(in interface{}) (out string, err error) {
 }
 
 func fromyaml(in interface{}) (out interface{}, err error) {
-	defer trackUsage("fromyaml", &out, err, in)
+	defer trackUsage("fromyaml", false, &out, err, in)
 	switch t := in.(type) {
 	case string:
 		if err := yaml.Unmarshal([]byte(t), &out); err != nil {
@@ -464,7 +473,7 @@ func fromyaml(in interface{}) (out interface{}, err error) {
 }
 
 func b64enc(in interface{}) (out string, err error) {
-	defer trackUsage("b64enc", &out, err, in)
+	defer trackUsage("b64enc", false, &out, err, in)
 	var b []byte
 	switch t := in.(type) {
 	case string:
@@ -490,7 +499,7 @@ func b64enc(in interface{}) (out string, err error) {
 }
 
 func b64dec(in interface{}) (out []byte, err error) {
-	defer trackUsage("b64dec", &out, err, in)
+	defer trackUsage("b64dec", false, &out, err, in)
 	var b []byte
 	var n int
 	switch t := in.(type) {
@@ -523,7 +532,7 @@ func b64dec(in interface{}) (out []byte, err error) {
 }
 
 func hexenc(in interface{}) (out string, err error) {
-	defer trackUsage("hexenc", &out, err, in)
+	defer trackUsage("hexenc", false, &out, err, in)
 	switch t := in.(type) {
 	case string:
 		out = hex.EncodeToString([]byte(t))
@@ -544,7 +553,7 @@ func hexenc(in interface{}) (out string, err error) {
 }
 
 func hexdec(in interface{}) (out []byte, err error) {
-	defer trackUsage("hexdec", &out, err, in)
+	defer trackUsage("hexdec", false, &out, err, in)
 	var b []byte
 	var n int
 	switch t := in.(type) {
@@ -576,7 +585,7 @@ func hexdec(in interface{}) (out []byte, err error) {
 }
 
 func _gzip(in interface{}) (out []byte, err error) {
-	defer trackUsage("gzip", &out, err, in)
+	defer trackUsage("gzip", false, &out, err, in)
 	var todo io.Reader
 	switch t := in.(type) {
 	case string:
@@ -609,7 +618,7 @@ func _gzip(in interface{}) (out []byte, err error) {
 }
 
 func _gunzip(in interface{}) (out []byte, err error) {
-	defer trackUsage("gunzip", &out, err, in)
+	defer trackUsage("gunzip", false, &out, err, in)
 	var todo io.Reader
 	switch t := in.(type) {
 	case string:
@@ -643,7 +652,7 @@ func _gunzip(in interface{}) (out []byte, err error) {
 }
 
 func rawfile(in string) (out []byte, err error) {
-	defer trackUsage("rawfile", &out, err, in)
+	defer trackUsage("rawfile", true, &out, err, in)
 	f, err := os.Open(in)
 	if err != nil {
 		return nil, err
@@ -653,7 +662,7 @@ func rawfile(in string) (out []byte, err error) {
 }
 
 func textfile(in string) (out string, err error) {
-	defer trackUsage("textfile", &out, err, in)
+	defer trackUsage("textfile", true, &out, err, in)
 	f, err := os.Open(in)
 	if err != nil {
 		return "", err
@@ -667,7 +676,7 @@ func textfile(in string) (out string, err error) {
 }
 
 func writefile(in interface{}, fpath string) (out string, err error) {
-	defer trackUsage("writefile", "", err, in, fpath)
+	defer trackUsage("writefile", true, "", err, in, fpath)
 	f, err := os.OpenFile(fpath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.FileMode(0600))
 	if err != nil {
 		return "", err
@@ -689,7 +698,7 @@ func writefile(in interface{}, fpath string) (out string, err error) {
 }
 
 func stringify(in interface{}) (out string, err error) {
-	defer trackUsage("string", &out, err, in)
+	defer trackUsage("string", false, &out, err, in)
 	switch t := in.(type) {
 	case string:
 		out = t
@@ -707,7 +716,7 @@ func stringify(in interface{}) (out string, err error) {
 }
 
 func encrypt(in interface{}, b64key string, aad string) (out []byte, err error) {
-	defer trackUsage("encrypt", &out, err, in, b64key, aad)
+	defer trackUsage("encrypt", false, &out, err, in, b64key, aad)
 	var ptxt []byte
 	switch t := in.(type) {
 	case string:
@@ -743,7 +752,7 @@ func encrypt(in interface{}, b64key string, aad string) (out []byte, err error) 
 }
 
 func decrypt(in interface{}, b64key string, aad string) (out []byte, err error) {
-	defer trackUsage("decrypt", &out, err, in, b64key, aad)
+	defer trackUsage("decrypt", false, &out, err, in, b64key, aad)
 	var ctxt []byte
 	switch t := in.(type) {
 	case string: // try to go on assuming its base64-encoded
@@ -784,7 +793,7 @@ func decrypt(in interface{}, b64key string, aad string) (out []byte, err error) 
 }
 
 func add(in interface{}, value interface{}, key ...interface{}) (out interface{}, err error) {
-	defer trackUsage("add", &out, err, in, value, key)
+	defer trackUsage("add", false, &out, err, in, value, key)
 	switch t := in.(type) {
 	case map[int]interface{}:
 		if len(key) < 1 {
@@ -832,7 +841,7 @@ func add(in interface{}, value interface{}, key ...interface{}) (out interface{}
 }
 
 func env(in string, or ...string) (out string) {
-	defer trackUsage("env", &out, nil, in, or)
+	defer trackUsage("env", true, &out, nil, in, or)
 	if v, ok := os.LookupEnv(in); ok {
 		return v
 	}
@@ -843,7 +852,7 @@ func env(in string, or ...string) (out string) {
 }
 
 func cmd(prog string, args ...string) (out string, err error) {
-	defer trackUsage("cmd", &out, err, prog, args[:])
+	defer trackUsage("cmd", true, &out, err, prog, args[:])
 	x := exec.Command(prog, args...)
 	outbuf, errbuf := new(bytes.Buffer), new(bytes.Buffer)
 	x.Stderr = errbuf
@@ -860,7 +869,7 @@ func cmd(prog string, args ...string) (out string, err error) {
 }
 
 func random(size int) (out []byte) {
-	defer trackUsage("random", &out, nil, size)
+	defer trackUsage("random", false, &out, nil, size)
 	out = make([]byte, size)
 	_, err := io.ReadFull(rand.Reader, out)
 	if err != nil {
@@ -876,4 +885,37 @@ func consumeReader(r io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+func build(_unsafe bool, name, _template string, loadedFiles map[string]string, localFiles ...string) (*template.Template, error) {
+	var err error
+	tpl := template.New(name).Funcs(buildFuncMap(_unsafe))
+	if _template != "" {
+		tpl, err = tpl.Parse(_template)
+		if err != nil {
+			return nil, err
+		}
+	}
+	for name, content := range loadedFiles {
+		tpl, err = tpl.New(name).Parse(content)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(localFiles) > 0 {
+		return tpl.ParseFiles(localFiles...)
+	}
+	return tpl, nil
+}
+
+func render(t *template.Template, data interface{}) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	if err := t.Execute(buf, data); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func fns() string {
+	return templateFnsInfoString
 }

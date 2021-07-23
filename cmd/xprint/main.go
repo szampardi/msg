@@ -17,7 +17,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"text/template"
 
 	log "github.com/szampardi/msg"
 )
@@ -37,7 +36,7 @@ var (
 	unsafe                *bool     = flag.Bool("u", unsafeMode(), fmt.Sprintf("allow evaluation of dangerous template functions (%v)", unsafeFuncs())) //
 	showFns               *bool     = flag.Bool("F", false, "print available template functions and exit")                                              //
 	debug                 *bool     = flag.Bool("D", false, "debug init and template rendering activities")                                             //
-	startDebuggingOnce    sync.Once                                                                                                                     //
+	startTracingOnce      sync.Once                                                                                                                     //
 	output                *os.File                                                                                                                      //
 	argsfirst             *bool     = flag.Bool("a", false, "output arguments (if any) before stdin (if any), instead of the opposite")                 //
 	showVersion           *bool     = flag.Bool("v", false, "print build version/date and exit")                                                        //
@@ -107,7 +106,7 @@ the others can be accessed with the "template" Action.
 `,
 		func(value string) error {
 			if *debug {
-				startDebuggingOnce.Do(usageDebugger)
+				startTracingOnce.Do(usageDebugger)
 			}
 			_, err := os.Stat(value)
 			if err == nil {
@@ -161,10 +160,10 @@ func init() {
 		fmt.Fprintf(os.Stderr, "github.com/szampardi/msg/cmd/xprint version %s (%s) built %s\n", semver, commit, built)
 		os.Exit(0)
 	}
+	b, _ := json.MarshalIndent(templateFnsInfo, "", "  ")
+	templateFnsInfoString = string(b)
 	if *showFns {
-		enc := json.NewEncoder(os.Stderr)
-		enc.SetIndent("", "  ")
-		err := enc.Encode(templateFnsInfo)
+		os.Stderr.WriteString(templateFnsInfoString)
 		if err != nil {
 			panic(err)
 		}
@@ -199,6 +198,7 @@ func init() {
 }
 
 func main() {
+	startTracingOnce.Do(usageDebugger)
 	if *server != "" {
 		if output == nil {
 			output = os.Stderr
@@ -231,25 +231,19 @@ func main() {
 
 	buf := new(bytes.Buffer)
 	if len(_templates) > 0 {
-		if *debug {
-			log.Debugf("%v", _templates)
-			startDebuggingOnce.Do(usageDebugger)
-		}
-		var err error
-		tpl := template.New("").Funcs(buildFuncMap(*unsafe))
-		files := []string{}
+		log.Debugf("%v", _templates)
+		argTemplates := map[string]string{}
+		localTemplates := []string{}
 		for n, t := range _templates {
 			if !t.isFile {
-				tpl, err = tpl.New(fmt.Sprintf("arg%d", n)).Parse(t.s)
-				if err != nil {
-					panic(err)
-				}
+				argTemplates[fmt.Sprintf("opt%d", n)] = t.s
 			} else {
-				files = append(files, t.s)
+				localTemplates = append(localTemplates, t.s)
 			}
 		}
-		if len(files) > 0 {
-			tpl.ParseFiles(files...)
+		tpl, err := build(*unsafe, os.Args[0], "", argTemplates, localTemplates...)
+		if err != nil {
+			panic(err)
 		}
 		if err := tpl.Execute(buf, data); err != nil {
 			panic(err)
