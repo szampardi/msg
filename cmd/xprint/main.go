@@ -9,6 +9,9 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -31,15 +34,15 @@ var (
 		s      string
 		isFile bool
 	}
-	unsafe             *bool     = flag.Bool("u", unsafeMode(), fmt.Sprintf("allow evaluation of dangerous template functions (%v)", unsafeFuncs())) //
-	showFns            *bool     = flag.Bool("F", false, "print available template functions and exit")                                              //
-	debug              *bool     = flag.Bool("D", false, "debug init and template rendering activities")                                             //
-	startDebuggingOnce sync.Once                                                                                                                     //
-	output             *os.File                                                                                                                      //
-	argsfirst          *bool     = flag.Bool("a", false, "output arguments (if any) before stdin (if any), instead of the opposite")                 //
-	showVersion        *bool     = flag.Bool("v", false, "print build version/date and exit")                                                        //
-	//server                *string   = flag.String("s", "", "start a render server on given address")                                                    //
-	semver, commit, built = "v0.0.0-dev", "local", "a while ago" //
+	unsafe                *bool     = flag.Bool("u", unsafeMode(), fmt.Sprintf("allow evaluation of dangerous template functions (%v)", unsafeFuncs())) //
+	showFns               *bool     = flag.Bool("F", false, "print available template functions and exit")                                              //
+	debug                 *bool     = flag.Bool("D", false, "debug init and template rendering activities")                                             //
+	startDebuggingOnce    sync.Once                                                                                                                     //
+	output                *os.File                                                                                                                      //
+	argsfirst             *bool     = flag.Bool("a", false, "output arguments (if any) before stdin (if any), instead of the opposite")                 //
+	showVersion           *bool     = flag.Bool("v", false, "print build version/date and exit")                                                        //
+	server                *string   = flag.String("s", "", "start a render server on given address")                                                    //
+	semver, commit, built           = "v0.0.0-dev", "local", "a while ago"                                                                              //
 )
 
 func unsafeFuncs() []string {
@@ -196,37 +199,36 @@ func init() {
 }
 
 func main() {
-	/*
-		if *server != "" {
-			if output == nil {
-				output = os.Stderr
-			}
-			var err error
-			l, err = log.New(log.Formats[log.StdFormat].String(), log.Formats[log.DefTimeFmt].String(), loglvl, *logcolor, *name, output)
-			if err != nil {
-				panic(err)
-			}
-			u, err := url.Parse(*server)
-			if err != nil {
-				panic(err)
-			}
-			proto := strings.Split(u.Scheme, ":")[0]
-			var addr string
-			if proto != "unix" {
-				addr = net.JoinHostPort(u.Hostname(), u.Port())
-			} else {
-				addr = u.Hostname()
-			}
-			lis, err := net.Listen(proto, addr)
-			if err != nil {
-				panic(err)
-			}
-			l.Noticef("set up %s listener on %s", proto, lis.Addr().String())
-			http.HandleFunc("/render", renderServer)
-			http.HandleFunc("/", uiPage)
-			panic(http.Serve(lis, nil).Error())
+	if *server != "" {
+		if output == nil {
+			output = os.Stderr
 		}
-	*/
+		var err error
+		l, err = log.New(log.Formats[log.StdFormat].String(), log.Formats[log.DefTimeFmt].String(), loglvl, *logcolor, *name, output)
+		if err != nil {
+			panic(err)
+		}
+		u, err := url.Parse(*server)
+		if err != nil {
+			panic(err)
+		}
+		proto := strings.Split(u.Scheme, ":")[0]
+		var addr string
+		if proto != "unix" {
+			addr = net.JoinHostPort(u.Hostname(), u.Port())
+		} else {
+			addr = u.Hostname()
+		}
+		lis, err := net.Listen(proto, addr)
+		if err != nil {
+			panic(err)
+		}
+		l.Noticef("set up %s listener on %s", proto, lis.Addr().String())
+		http.HandleFunc("/render", renderServer)
+		http.HandleFunc("/", uiPage)
+		panic(http.Serve(lis, nil).Error())
+	}
+
 	buf := new(bytes.Buffer)
 	if len(_templates) > 0 {
 		if *debug {

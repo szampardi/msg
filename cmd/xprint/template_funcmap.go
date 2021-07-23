@@ -212,6 +212,12 @@ var templateFnsInfo = map[string]fn{
 		reflect.TypeOf(textfile).String(),
 		true,
 	},
+	"timestamp": {
+		timestamp,
+		"$1 for timezone (default UTC)",
+		reflect.TypeOf(timestamp).String(),
+		false,
+	},
 	"togob": {
 		togob,
 		"gob encode",
@@ -307,6 +313,13 @@ func usageDebugger() {
 			trackWg.Done()
 		}
 	}()
+}
+
+func timestamp(tz ...string) time.Time {
+	if len(tz) > 0 {
+		return time.Now().In(time.FixedZone(tz[0], 0))
+	}
+	return time.Now().UTC()
 }
 
 func _http(method, url string, body interface{}, headers map[string]string) (out *http.Response, err error) {
