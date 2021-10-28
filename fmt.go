@@ -201,13 +201,13 @@ func ph2verb(ph string) (verb string, arg string) {
 // For which we are logging, level is the state, importance and type of message logged,
 // Message contains the string to be logged, format is the format of string to be passed to sprintf
 type info struct {
-	ID       uint32
-	Time     string
-	Module   string
-	Level    Lvl
-	Line     int
-	Filename string
-	Message  interface{}
-	Emoji    string
+	ID       uint32      `json:"id"`
+	Time     string      `json:"time"`
+	Module   string      `json:"module"`
+	Level    Lvl         `json:"level"`
+	Line     int         `json:"line,omitempty"`
+	Filename string      `json:"filename,omitempty"`
+	Message  interface{} `json:"message"`
+	Emoji    string      `json:"-"`
 	//format   string
 }

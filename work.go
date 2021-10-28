@@ -171,16 +171,18 @@ func (r *info) output(format, spFormat string) string {
 			out = string(bout)
 	*/
 	case "json":
-		l := &info{
-			ID:       r.ID,
-			Time:     time.Now().String(),
-			Module:   r.Module,
-			Level:    r.Level,
-			Line:     r.Line,
-			Filename: r.Filename,
-			Message:  r.Message,
+		var imported interface{}
+		switch t := r.Message.(type) {
+		case string:
+			if err := json.Unmarshal([]byte(t), &imported); err == nil {
+				r.Message = imported
+			}
+		case []byte:
+			if err := json.Unmarshal(t, &imported); err == nil {
+				r.Message = imported
+			}
 		}
-		bout, _ := json.Marshal(l)
+		bout, _ := json.Marshal(r)
 		out = string(bout)
 	default:
 		out = fmt.Sprintf(
