@@ -5,6 +5,7 @@ package log
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -23,6 +24,7 @@ import (
 type worker struct {
 	Minion     *log.Logger
 	Color      bool
+	spFormat   string
 	format     string
 	timeFormat string
 	level      Lvl
@@ -31,8 +33,18 @@ type worker struct {
 //NewWorker  Returns an instance of worker class, prefix is the string attached to every log,
 // flag determine the log params, color parameters verifies whether we need colored outputs or not
 func newWorker(prefix string, format, timeformat string, flag int, color bool, out io.Writer, lvl Lvl) *worker {
+	var spFormat string
 	if format == "" {
 		format = Formats[PlainFormat]._String
+	}
+	switch format {
+	case "yaml":
+		spFormat = "yaml"
+	case "json":
+		spFormat = "json"
+	}
+	if v, ok := Formats[format]; ok {
+		format = v._String
 	}
 	if timeformat == "" {
 		timeformat = time.RFC3339
@@ -43,6 +55,7 @@ func newWorker(prefix string, format, timeformat string, flag int, color bool, o
 	return &worker{
 		Minion:     log.New(out, prefix, flag),
 		Color:      color,
+		spFormat:   spFormat,
 		format:     format,
 		timeFormat: timeformat,
 		level:      lvl,
@@ -97,7 +110,7 @@ func (l *Logger) SetOutput(w io.Writer) {
 
 //Log  The log commnand is the function available to user to log message, lvl specifies
 // the degree of the message the user wants to log, message is the info user wants to log
-func (l *Logger) Log(lvl Lvl, message string) {
+func (l *Logger) Log(lvl Lvl, message interface{}) {
 	l.logInternal(lvl, message, 2)
 }
 
@@ -107,7 +120,7 @@ func Log(lvl Lvl, message string) {
 	defaultLogger.logInternal(lvl, message, 2)
 }
 
-func (l *Logger) logInternal(lvl Lvl, message string, pos int) {
+func (l *Logger) logInternal(lvl Lvl, message interface{}, pos int) {
 	//var formatString string = "#%d %s [%s] %s:%d ▶ %.3s %s"
 	_, filename, line, _ := runtime.Caller(pos)
 	filename = path.Base(filename)
@@ -132,29 +145,59 @@ func (w *worker) log(level Lvl, calldepth int, info *info) error {
 	if w.Color {
 		buf := &bytes.Buffer{}
 		buf.Write(Levels[level].escapedBytes)
-		buf.Write([]byte(info.output(w.format)))
+		buf.Write([]byte(info.output(w.format, w.spFormat)))
 		buf.Write(ansi.Controls["Reset"].Bytes)
 		return w.Minion.Output(calldepth+1, buf.String())
 	}
-	return w.Minion.Output(calldepth+1, info.output(w.format))
+	return w.Minion.Output(calldepth+1, info.output(w.format, w.spFormat))
 }
 
-// Output Returns a proper string to be outputted for a particular info
-func (r *info) output(format string) string {
-	msg := fmt.Sprintf(
-		format,
-		r.ID,                  // %[1] // %{id}
-		r.Time,                // %[2] // %{time[:fmt]}
-		r.Module,              // %[3] // %{module}
-		r.Filename,            // %[4] // %{filename}
-		r.Line,                // %[5] // %{line}
-		Levels[r.Level].Str,   // %[6] // %{level}
-		r.Message,             // %[7] // %{message}
-		Levels[r.Level].emoji, // %[8] // %{emoji}
-	)
-	// Ignore printf errors if len(args) > len(verbs)
-	if i := strings.LastIndex(msg, "%!(EXTRA"); i != -1 {
-		return msg[:i]
+// Output Returns formatted string
+func (r *info) output(format, spFormat string) string {
+	var out string
+	switch spFormat {
+	/*
+		case "yaml":
+			l := &info{
+				ID:       r.ID,
+				Time:     time.Now().String(),
+				Module:   r.Module,
+				Level:    r.Level,
+				Line:     r.Line,
+				Filename: r.Filename,
+				Message:  r.Message,
+			}
+			bout, _ := yaml.Marshal(l)
+			out = string(bout)
+	*/
+	case "json":
+		l := &info{
+			ID:       r.ID,
+			Time:     time.Now().String(),
+			Module:   r.Module,
+			Level:    r.Level,
+			Line:     r.Line,
+			Filename: r.Filename,
+			Message:  r.Message,
+		}
+		bout, _ := json.Marshal(l)
+		out = string(bout)
+	default:
+		out = fmt.Sprintf(
+			format,
+			r.ID,                  // %[1] // %{id}
+			r.Time,                // %[2] // %{time[:fmt]}
+			r.Module,              // %[3] // %{module}
+			r.Filename,            // %[4] // %{filename}
+			r.Line,                // %[5] // %{line}
+			Levels[r.Level].Str,   // %[6] // %{level}
+			r.Message,             // %[7] // %{message}
+			Levels[r.Level].emoji, // %[8] // %{emoji}
+		)
+		// Ignore printf errors if len(args) > len(verbs)
+		if i := strings.LastIndex(out, "%!(EXTRA"); i != -1 {
+			return out[:i]
+		}
 	}
-	return msg
+	return out
 }

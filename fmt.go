@@ -207,7 +207,7 @@ type info struct {
 	Level    Lvl
 	Line     int
 	Filename string
-	Message  string
+	Message  interface{}
 	Emoji    string
 	//format   string
 }
