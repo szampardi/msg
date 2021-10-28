@@ -171,14 +171,14 @@ func (r *info) output(format, spFormat string) string {
 			out = string(bout)
 	*/
 	case "json":
-		var imported interface{}
+		imported := new(interface{})
 		switch t := r.Message.(type) {
 		case string:
-			if err := json.Unmarshal([]byte(t), &imported); err == nil {
+			if err := json.Unmarshal([]byte(t), imported); err == nil {
 				r.Message = imported
 			}
 		case []byte:
-			if err := json.Unmarshal(t, &imported); err == nil {
+			if err := json.Unmarshal(t, imported); err == nil {
 				r.Message = imported
 			}
 		}
